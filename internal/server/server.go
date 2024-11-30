@@ -23,8 +23,20 @@ func NewServer(storage storage.MetricsStorage) *Server {
 func (s *Server) Start() error {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
-	r.Post("/update/gauge/{metricName}/{metricValue}", s.handler.SetGaugeMetricHandler)
-	r.Post("/update/counter/{metricName}/{metricValue}", s.handler.SetCounterMetricHandler)
+
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/gauge/", s.handler.SetGaugeMetricHandler)
+		r.Post("/gauge/{metricName}/", s.handler.SetGaugeMetricHandler)
+		r.Post("/gauge/{metricName}/{metricValue}", s.handler.SetGaugeMetricHandler)
+
+		r.Post("/counter/", s.handler.SetCounterMetricHandler)
+		r.Post("/counter/{metricName}/", s.handler.SetCounterMetricHandler)
+		r.Post("/counter/{metricName}/{metricValue}", s.handler.SetCounterMetricHandler)
+
+		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+			http.Error(w, "No metric type", http.StatusBadRequest)
+		})
+	})
 
 	return http.ListenAndServe(":8080", r)
 }
