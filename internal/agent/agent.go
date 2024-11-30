@@ -7,6 +7,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/go-resty/resty/v2"
+
 	"metrics/internal/storage"
 )
 
@@ -16,6 +18,7 @@ type Agent struct {
 	pushInterval time.Duration
 
 	storage storage.MetricsStorage
+	client  *resty.Client
 }
 
 func NewAgent(serverURL string, storage storage.MetricsStorage, pollInterval, pushInterval time.Duration) *Agent {
@@ -23,8 +26,8 @@ func NewAgent(serverURL string, storage storage.MetricsStorage, pollInterval, pu
 		serverURL:    serverURL,
 		pollInterval: pollInterval,
 		pushInterval: pushInterval,
-
-		storage: storage,
+		storage:      storage,
+		client:       resty.New(),
 	}
 }
 
@@ -70,34 +73,29 @@ func (a *Agent) pushMetrics() error {
 	for _, name := range gauges {
 		value, _ := a.storage.GetGauge(name)
 		url := fmt.Sprintf("%s/update/gauge/%s/%v", a.serverURL, name, value)
-		pushMetric(url)
+		a.pushMetric(url)
 	}
 
 	counters := a.storage.GetAllCounters()
 	for _, name := range counters {
 		value, _ := a.storage.GetCounter(name)
 		url := fmt.Sprintf("%s/update/counter/%s/%v", a.serverURL, name, value)
-		pushMetric(url)
+		a.pushMetric(url)
 	}
 	return nil
 }
 
-func pushMetric(url string) error {
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return fmt.Errorf("cant create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "text/plain")
+func (a *Agent) pushMetric(url string) error {
+	resp, err := a.client.R().
+		SetHeader("Content-Type", "text/plain").
+		Post(url)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("cant send metric: %w", err)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("bad status code: %d url %s", resp.StatusCode, url)
+	if resp.StatusCode() != http.StatusOK {
+		return fmt.Errorf("bad status code: %d url %s", resp.StatusCode(), url)
 	}
-	defer resp.Body.Close()
 	return nil
 }
 
