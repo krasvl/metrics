@@ -11,16 +11,16 @@ import (
 )
 
 type Agent struct {
-	serverUrl    string
+	serverURL    string
 	pollInterval time.Duration
 	pushInterval time.Duration
 
 	storage storage.MetricsStorage
 }
 
-func NewAgent(serverUrl string, storage storage.MetricsStorage, pollInterval, pushInterval time.Duration) *Agent {
+func NewAgent(serverURL string, storage storage.MetricsStorage, pollInterval, pushInterval time.Duration) *Agent {
 	return &Agent{
-		serverUrl:    serverUrl,
+		serverURL:    serverURL,
 		pollInterval: pollInterval,
 		pushInterval: pushInterval,
 
@@ -69,14 +69,14 @@ func (a *Agent) pushMetrics() error {
 	gauges := a.storage.GetAllGauges()
 	for _, name := range gauges {
 		value, _ := a.storage.GetGauge(name)
-		url := fmt.Sprintf("%s/update/gauge/%s/%v", a.serverUrl, name, value)
+		url := fmt.Sprintf("%s/update/gauge/%s/%v", a.serverURL, name, value)
 		pushMetric(url)
 	}
 
 	counters := a.storage.GetAllCounters()
 	for _, name := range counters {
 		value, _ := a.storage.GetCounter(name)
-		url := fmt.Sprintf("%s/update/counter/%s/%v", a.serverUrl, name, value)
+		url := fmt.Sprintf("%s/update/counter/%s/%v", a.serverURL, name, value)
 		pushMetric(url)
 	}
 	return nil
@@ -97,6 +97,7 @@ func pushMetric(url string) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("bad status code: %d url %s", resp.StatusCode, url)
 	}
+	defer resp.Body.Close()
 	return nil
 }
 
@@ -109,7 +110,9 @@ func (a *Agent) Start() error {
 		case <-pollTicker.C:
 			a.pollMetrics()
 		case <-reportTicker.C:
-			a.pushMetrics()
+			if err := a.pushMetrics(); err != nil {
+				return err
+			}
 		}
 	}
 }

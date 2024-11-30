@@ -45,7 +45,7 @@ func TestPushMetrics(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	agent.serverUrl = ts.URL
+	agent.serverURL = ts.URL
 
 	err := agent.pushMetrics()
 	if err != nil {
