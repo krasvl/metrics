@@ -6,7 +6,7 @@ import (
 
 	"metrics/internal/storage"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 )
 
 type MetricsHandler struct {
