@@ -44,6 +44,8 @@ func TestSetMetricHandler(t *testing.T) {
 		srv.handler.SetMetricHandler(w, req)
 
 		res := w.Result()
+		defer res.Body.Close()
+
 		if res.StatusCode != tt.expectedStatus {
 			t.Errorf("expected status %d, got %d, url %s", tt.expectedStatus, res.StatusCode, tt.url)
 		}
