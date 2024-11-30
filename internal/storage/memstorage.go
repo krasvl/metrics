@@ -1,16 +1,5 @@
 package storage
 
-type Gauge float32
-type Counter int32
-
-type MetricsStorage interface {
-	GetGauge(name string) Gauge
-	SetGauge(name string, value Gauge)
-
-	GetCounter(name string) Counter
-	SetCounter(name string, value Counter)
-}
-
 type MemStorage struct {
 	gauges   map[string]Gauge
 	counters map[string]Counter
@@ -23,16 +12,38 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) GetGauge(name string) Gauge {
-	return ms.gauges[name]
+func (ms *MemStorage) GetAllGauges() []string {
+	names := make([]string, 0, len(ms.gauges))
+
+	for name := range ms.gauges {
+		names = append(names, name)
+	}
+
+	return names
+}
+
+func (ms *MemStorage) GetGauge(name string) (Gauge, bool) {
+	value, exist := ms.gauges[name]
+	return value, exist
 }
 
 func (ms *MemStorage) SetGauge(name string, value Gauge) {
 	ms.gauges[name] = value
 }
 
-func (ms *MemStorage) GetCounter(name string) Counter {
-	return ms.counters[name]
+func (ms *MemStorage) GetAllCounters() []string {
+	names := make([]string, 0, len(ms.counters))
+
+	for name := range ms.counters {
+		names = append(names, name)
+	}
+
+	return names
+}
+
+func (ms *MemStorage) GetCounter(name string) (Counter, bool) {
+	value, exist := ms.counters[name]
+	return value, exist
 }
 
 func (ms *MemStorage) SetCounter(name string, value Counter) {
