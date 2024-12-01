@@ -25,15 +25,13 @@ func main() {
 	}
 
 	pushenv := os.Getenv("REPORT_INTERVAL")
-	pushenvVal, err := strconv.ParseInt(pushenv, 10, 32)
-	if err != nil {
+	if pushenvVal, err := strconv.ParseInt(pushenv, 10, 32); err == nil && pushenvVal > 0 {
 		val := int(pushenvVal)
 		pushInterval = &val
 	}
 
 	pollenv := os.Getenv("POLL_INTERVAL")
-	pollenvVal, err := strconv.ParseInt(pollenv, 10, 32)
-	if err != nil {
+	if pollenvVal, err := strconv.ParseInt(pollenv, 10, 32); err == nil && pollenvVal > 0 {
 		val := int(pollenvVal)
 		pollInterval = &val
 	}
