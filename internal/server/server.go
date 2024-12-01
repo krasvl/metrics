@@ -11,13 +11,14 @@ import (
 )
 
 type Server struct {
+	addr    string
 	storage storage.MetricsStorage
 	handler *handlers.MetricsHandler
 }
 
-func NewServer(storage storage.MetricsStorage) *Server {
+func NewServer(addr string, storage storage.MetricsStorage) *Server {
 	handler := handlers.NewMetricsHandler(storage)
-	return &Server{storage: storage, handler: handler}
+	return &Server{addr: addr, storage: storage, handler: handler}
 }
 
 func (s *Server) Start() error {
@@ -52,5 +53,5 @@ func (s *Server) Start() error {
 		})
 	})
 
-	return http.ListenAndServe(":8080", r)
+	return http.ListenAndServe(s.addr, r)
 }
