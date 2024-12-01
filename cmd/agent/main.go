@@ -4,6 +4,7 @@ import (
 	"flag"
 	"metrics/internal/agent"
 	"metrics/internal/storage"
+	"strings"
 
 	"log"
 	"time"
@@ -15,6 +16,10 @@ func main() {
 	pollInterval := flag.Int("p", 2, "poll interval")
 
 	flag.Parse()
+
+	if !strings.HasPrefix(*addr, "http://") && !strings.HasPrefix(*addr, "https://") {
+		*addr = "http://" + *addr
+	}
 
 	s := storage.NewMemStorage()
 	a := agent.NewAgent(*addr, s, time.Duration(*pollInterval)*time.Second, time.Duration(*pushInterval)*time.Second)
