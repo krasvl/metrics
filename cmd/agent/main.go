@@ -2,12 +2,14 @@ package main
 
 import (
 	"flag"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"metrics/internal/agent"
 	"metrics/internal/storage"
-	"strings"
-
-	"log"
-	"time"
 )
 
 func main() {
@@ -16,6 +18,25 @@ func main() {
 	pollInterval := flag.Int("p", 2, "poll interval")
 
 	flag.Parse()
+
+	addrenv := os.Getenv("ADDRESS")
+	if addrenv != "" {
+		addr = &addrenv
+	}
+
+	pushenv := os.Getenv("REPORT_INTERVAL")
+	pushenvVal, err := strconv.ParseInt(pushenv, 10, 32)
+	if err != nil {
+		val := int(pushenvVal)
+		pushInterval = &val
+	}
+
+	pollenv := os.Getenv("POLL_INTERVAL")
+	pollenvVal, err := strconv.ParseInt(pollenv, 10, 32)
+	if err != nil {
+		val := int(pollenvVal)
+		pollInterval = &val
+	}
 
 	if !strings.HasPrefix(*addr, "http://") && !strings.HasPrefix(*addr, "https://") {
 		*addr = "http://" + *addr
