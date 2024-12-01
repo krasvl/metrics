@@ -1,7 +1,7 @@
 package storage
 
-type Gauge float32
-type Counter int32
+type Gauge float64
+type Counter int
 
 type MetricsStorage interface {
 	GetAllGauges() []string
