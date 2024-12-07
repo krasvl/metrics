@@ -13,20 +13,22 @@ import (
 )
 
 type Agent struct {
+	storage      storage.MetricsStorage
+	client       *resty.Client
 	serverURL    string
 	pollInterval time.Duration
 	pushInterval time.Duration
-
-	storage storage.MetricsStorage
-	client  *resty.Client
 }
 
-func NewAgent(serverURL string, storage storage.MetricsStorage, pollInterval, pushInterval time.Duration) *Agent {
+func NewAgent(
+	serverURL string,
+	metricsStorage storage.MetricsStorage,
+	pollInterval, pushInterval time.Duration) *Agent {
 	return &Agent{
 		serverURL:    serverURL,
 		pollInterval: pollInterval,
 		pushInterval: pushInterval,
-		storage:      storage,
+		storage:      metricsStorage,
 		client:       resty.New(),
 	}
 }
@@ -68,19 +70,24 @@ func (a *Agent) pollMetrics() {
 }
 
 func (a *Agent) pushMetrics() error {
-
 	gauges := a.storage.GetAllGauges()
 	for _, name := range gauges {
 		value, _ := a.storage.GetGauge(name)
 		url := fmt.Sprintf("%s/update/gauge/%s/%v", a.serverURL, name, value)
-		a.pushMetric(url)
+
+		if err := a.pushMetric(url); err != nil {
+			return err
+		}
 	}
 
 	counters := a.storage.GetAllCounters()
 	for _, name := range counters {
 		value, _ := a.storage.GetCounter(name)
 		url := fmt.Sprintf("%s/update/counter/%s/%v", a.serverURL, name, value)
-		a.pushMetric(url)
+
+		if err := a.pushMetric(url); err != nil {
+			return err
+		}
 	}
 	return nil
 }

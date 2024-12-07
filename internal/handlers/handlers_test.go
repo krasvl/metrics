@@ -5,232 +5,166 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
-
 	"metrics/internal/storage"
+
+	"github.com/go-chi/chi/v5"
 )
 
-func TestSetGaugeMetricHandler(t *testing.T) {
+type testCase struct {
+	method         string
+	url            string
+	routeParams    map[string]string
+	expectedStatus int
+	expectedBody   string
+}
 
-	gaugeTests := []struct {
-		url            string
-		metricName     string
-		metricValue    string
-		expectedStatus int
-	}{
-		{"/update/gauge/{metricName}/{metricName}", "test1", "0", http.StatusOK},
-		{"/update/gauge/{metricName}/{metricName}", "test1", "-1", http.StatusOK},
-		{"/update/gauge/{metricName}/{metricName}", "test1", "1.1", http.StatusOK},
-		{"/update/gauge/{metricName}/{metricName}", "test1", "no", http.StatusBadRequest},
-		{"/update/gauge/{metricName}/{metricName}", "test1", "", http.StatusBadRequest},
+func createRequest(method, url string, routeParams map[string]string) *http.Request {
+	r := httptest.NewRequest(method, url, http.NoBody)
+	rctx := chi.NewRouteContext()
+	for key, value := range routeParams {
+		rctx.URLParams.Add(key, value)
+	}
+	return r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
+}
+
+func runTests(t *testing.T, handlerFunc http.HandlerFunc, tests []testCase) {
+	t.Helper()
+
+	for _, tt := range tests {
+		r := createRequest(tt.method, tt.url, tt.routeParams)
+		w := httptest.NewRecorder()
+
+		handlerFunc(w, r)
+
+		res := w.Result()
+
+		if res.StatusCode != tt.expectedStatus {
+			t.Errorf("Expected status %d, got %d", tt.expectedStatus, res.StatusCode)
+		}
+
+		if tt.expectedStatus == http.StatusOK {
+			body, err := io.ReadAll(res.Body)
+			if err != nil {
+				t.Fatalf("Cant read response body: %v", err)
+			}
+			if string(body) != tt.expectedBody {
+				t.Errorf("Expected body %s, got %s", tt.expectedBody, string(body))
+			}
+		}
+
+		if err := res.Body.Close(); err != nil {
+			t.Fatalf("Cant close response body: %v", err)
+		}
+	}
+}
+
+func TestSetGaugeMetricHandler(t *testing.T) {
+	gaugeTests := []testCase{
+		{"POST", "/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "0"}, http.StatusOK, ""},
+		{"POST", "/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "-100000"}, http.StatusOK, ""},
+		{"POST", "/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "1.1432423"}, http.StatusOK, ""},
+		{"POST", "/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "gaugeTestBad"}, http.StatusBadRequest, ""},
+		{"POST", "/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": ""}, http.StatusBadRequest, ""},
 	}
 
 	memStorage := storage.NewMemStorage()
 	handler := NewMetricsHandler(memStorage)
 
-	for _, tt := range gaugeTests {
-		r := httptest.NewRequest("POST", tt.url, nil)
-		w := httptest.NewRecorder()
-
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("metricName", tt.metricName)
-		rctx.URLParams.Add("metricValue", tt.metricValue)
-		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-
-		handler.SetGaugeMetricHandler(w, r)
-
-		res := w.Result()
-		defer res.Body.Close()
-
-		if res.StatusCode != tt.expectedStatus {
-			t.Errorf("expected status %d, got %d, url %s", tt.expectedStatus, res.StatusCode, tt.url)
-		}
-	}
+	runTests(t, handler.SetGaugeMetricHandler, gaugeTests)
 }
 
 func TestSetCounterMetricHandler(t *testing.T) {
-
-	counterTests := []struct {
-		url            string
-		metricName     string
-		metricValue    string
-		expectedStatus int
-	}{
-		{"/update/counter/{metricName}/{metricName}", "test1", "0", http.StatusOK},
-		{"/update/counter/{metricName}/{metricName}", "test1", "-1", http.StatusOK},
-		{"/update/counter/{metricName}/{metricName}", "test1", "1.1", http.StatusBadRequest},
-		{"/update/couner/{metricName}/{metricName}", "test1", "no", http.StatusBadRequest},
-		{"/update/counter/{metricName}/{metricName}", "test1", "", http.StatusBadRequest},
+	counterTests := []testCase{
+		{"POST", "/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "0"}, http.StatusOK, ""},
+		{"POST", "/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "-123456"}, http.StatusOK, ""},
+		{"POST", "/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "3.1123"}, http.StatusBadRequest, ""},
+		{"POST", "/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "counterTestBad"}, http.StatusBadRequest, ""},
+		{"POST", "/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": ""}, http.StatusBadRequest, ""},
 	}
 
 	memStorage := storage.NewMemStorage()
 	handler := NewMetricsHandler(memStorage)
 
-	for _, tt := range counterTests {
-		r := httptest.NewRequest("POST", tt.url, nil)
-		w := httptest.NewRecorder()
-
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("metricName", tt.metricName)
-		rctx.URLParams.Add("metricValue", tt.metricValue)
-		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-
-		handler.SetCounterMetricHandler(w, r)
-
-		res := w.Result()
-		defer res.Body.Close()
-
-		if res.StatusCode != tt.expectedStatus {
-			t.Errorf("expected status %d, got %d, url %s", tt.expectedStatus, res.StatusCode, tt.url)
-		}
-	}
+	runTests(t, handler.SetCounterMetricHandler, counterTests)
 }
 
 func TestGetGaugeMetricHandler(t *testing.T) {
-	gaugeTests := []struct {
-		metricName     string
-		metricValue    float64
-		expectedStatus int
-		expectedBody   string
-	}{
-		{"test1", 1.1, http.StatusOK, "1.1"},
-		{"test2", 0, http.StatusOK, "0"},
-		{"test3", -1, http.StatusOK, "-1"},
-		{"nonexistent", 0, http.StatusNotFound, ""},
+	tests := []testCase{
+		{"GET", "/value/gauge/{metricName}",
+			map[string]string{"metricName": "test"}, http.StatusOK, "1"},
+		{"GET", "/value/gauge/{metricName}",
+			map[string]string{"metricName": "nonexistent"}, http.StatusNotFound, ""},
 	}
 
 	memStorage := storage.NewMemStorage()
+	memStorage.SetGauge("test", storage.Gauge(1))
+
 	handler := NewMetricsHandler(memStorage)
 
-	for _, tt := range gaugeTests {
-		if tt.metricName != "nonexistent" {
-			memStorage.SetGauge(tt.metricName, storage.Gauge(tt.metricValue))
-		}
-
-		r := httptest.NewRequest("GET", "/value/gauge/{metricName}", nil)
-		w := httptest.NewRecorder()
-
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("metricName", tt.metricName)
-		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-
-		handler.GetGaugeMetricHandler(w, r)
-
-		res := w.Result()
-		defer res.Body.Close()
-
-		if res.StatusCode != tt.expectedStatus {
-			t.Errorf("expected status %d, got %d for metric %s", tt.expectedStatus, res.StatusCode, tt.metricName)
-		}
-
-		if tt.expectedStatus == http.StatusOK {
-			body, _ := io.ReadAll(res.Body)
-			if string(body) != tt.expectedBody {
-				t.Errorf("expected body %s, got %s for metric %s", tt.expectedBody, string(body), tt.metricName)
-			}
-		}
-	}
+	runTests(t, handler.GetGaugeMetricHandler, tests)
 }
 
 func TestGetCounterMetricHandler(t *testing.T) {
-	counterTests := []struct {
-		metricName     string
-		metricValue    int
-		expectedStatus int
-		expectedBody   string
-	}{
-		{"test1", 1, http.StatusOK, "1"},
-		{"test2", 0, http.StatusOK, "0"},
-		{"test3", -1, http.StatusOK, "-1"},
-		{"nonexistent", 0, http.StatusNotFound, ""},
+	tests := []testCase{
+		{"GET", "/value/counter/{metricName}",
+			map[string]string{"metricName": "test"}, http.StatusOK, "1"},
+		{"GET", "/value/counter/{metricName}",
+			map[string]string{"metricName": "nonexistent"}, http.StatusNotFound, ""},
 	}
 
 	memStorage := storage.NewMemStorage()
+	memStorage.SetCounter("test", storage.Counter(1))
+
 	handler := NewMetricsHandler(memStorage)
 
-	for _, tt := range counterTests {
-		if tt.metricName != "nonexistent" {
-			memStorage.SetCounter(tt.metricName, storage.Counter(tt.metricValue))
-		}
-
-		r := httptest.NewRequest("GET", "/value/gauge/{metricName}", nil)
-		w := httptest.NewRecorder()
-
-		rctx := chi.NewRouteContext()
-		rctx.URLParams.Add("metricName", tt.metricName)
-		r = r.WithContext(context.WithValue(r.Context(), chi.RouteCtxKey, rctx))
-
-		handler.GetCounterMetricHandler(w, r)
-
-		res := w.Result()
-		defer res.Body.Close()
-
-		if res.StatusCode != tt.expectedStatus {
-			t.Errorf("expected status %d, got %d for metric %s", tt.expectedStatus, res.StatusCode, tt.metricName)
-		}
-
-		if tt.expectedStatus == http.StatusOK {
-			body, _ := io.ReadAll(res.Body)
-			if string(body) != tt.expectedBody {
-				t.Errorf("expected body %s, got %s for metric %s", tt.expectedBody, string(body), tt.metricName)
-			}
-		}
-	}
+	runTests(t, handler.GetCounterMetricHandler, tests)
 }
 
 func TestGetAllMetricsHandler(t *testing.T) {
-	gaugeTests := []struct {
-		metricName  string
-		metricValue float64
-	}{
-		{"gauge1", 1.1},
-		{"gauge2", -1.0},
-	}
-	counterTests := []struct {
-		metricName  string
-		metricValue int64
-	}{
-		{"counter1", 1},
-		{"counter2", 0},
+	body := `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Metrics</title>
+</head>
+<body>
+    <h1>Metrics</h1>
+    <h2>Gauges</h2>
+    <ul>
+        <li>testGauge1: 1.1</li>
+        <li>testGauge2: 1.2</li>
+    </ul>
+    <h2>Counters</h2>
+    <ul>
+        <li>testCounter: 2</li>
+    </ul>
+</body>
+</html>
+	`
+
+	tests := []testCase{
+		{"GET", "/", map[string]string{}, http.StatusOK, body},
 	}
 
 	memStorage := storage.NewMemStorage()
+	memStorage.SetGauge("testGauge1", storage.Gauge(1.1))
+	memStorage.SetGauge("testGauge2", storage.Gauge(1.2))
+	memStorage.SetCounter("testCounter", storage.Counter(1))
+	memStorage.SetCounter("testCounter", storage.Counter(1))
+
 	handler := NewMetricsHandler(memStorage)
 
-	for _, tt := range gaugeTests {
-		memStorage.SetGauge(tt.metricName, storage.Gauge(tt.metricValue))
-	}
-
-	for _, tt := range counterTests {
-		memStorage.SetCounter(tt.metricName, storage.Counter(tt.metricValue))
-	}
-
-	r := httptest.NewRequest("GET", "/", nil)
-	w := httptest.NewRecorder()
-
-	handler.GetAllMetricsHandler(w, r)
-
-	res := w.Result()
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		t.Errorf("expected status %d, got %d", http.StatusOK, res.StatusCode)
-	}
-
-	body, _ := io.ReadAll(res.Body)
-	bodyStr := string(body)
-
-	for _, tt := range gaugeTests {
-		if !strings.Contains(bodyStr, tt.metricName) {
-			t.Errorf("expected body to contain metric %s, but it didn't", tt.metricName)
-		}
-	}
-	for _, tt := range counterTests {
-		if !strings.Contains(bodyStr, tt.metricName) {
-			t.Errorf("expected body to contain metric %s, but it didn't", tt.metricName)
-		}
-	}
+	runTests(t, handler.GetAllMetricsHandler, tests)
 }

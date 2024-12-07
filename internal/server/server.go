@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -11,14 +12,14 @@ import (
 )
 
 type Server struct {
-	addr    string
 	storage storage.MetricsStorage
 	handler *handlers.MetricsHandler
+	addr    string
 }
 
-func NewServer(addr string, storage storage.MetricsStorage) *Server {
-	handler := handlers.NewMetricsHandler(storage)
-	return &Server{addr: addr, storage: storage, handler: handler}
+func NewServer(addr string, metricsStorage storage.MetricsStorage) *Server {
+	handler := handlers.NewMetricsHandler(metricsStorage)
+	return &Server{addr: addr, storage: metricsStorage, handler: handler}
 }
 
 func (s *Server) Start() error {
@@ -53,5 +54,8 @@ func (s *Server) Start() error {
 		})
 	})
 
-	return http.ListenAndServe(s.addr, r)
+	if err := http.ListenAndServe(s.addr, r); err != nil {
+		log.Fatalf("Server error: %v", err)
+	}
+	return nil
 }

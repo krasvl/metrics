@@ -1,25 +1,15 @@
 package main
 
 import (
-	"flag"
-	"os"
-
+	"log"
 	"metrics/internal/server"
-	"metrics/internal/storage"
 )
 
 func main() {
-	addr := flag.String("a", "localhost:8080", "address")
+	addrDefault := "localhost:8080"
+	srv := server.GetConfiguredServer(addrDefault)
 
-	flag.Parse()
-
-	addrenv := os.Getenv("ADDRESS")
-	if addrenv != "" {
-		addr = &addrenv
+	if err := srv.Start(); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
-
-	memStorage := storage.NewMemStorage()
-	srv := server.NewServer(*addr, memStorage)
-
-	srv.Start()
 }
