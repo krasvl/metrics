@@ -47,9 +47,9 @@ func TestPushMetrics(t *testing.T) {
 
 	agent.serverURL = ts.URL
 
-	err := agent.pushMetrics()
-	if err != nil {
+	if err := agent.pushMetrics(); err != nil {
 		t.Errorf("expected no error, got %v", err)
+		return
 	}
 }
 
@@ -96,14 +96,47 @@ func TestPollMetrics(t *testing.T) {
 	agent.pollMetrics()
 
 	for _, name := range expectedGauges {
-		if _, exist := agent.storage.GetGauge(name); !exist {
+		if _, ok := agent.storage.GetGauge(name); !ok {
 			t.Errorf("expected gauge metric %s to be collected", name)
 		}
 	}
 
 	for _, name := range expectedConters {
-		if _, exist := agent.storage.GetCounter(name); !exist {
+		if _, ok := agent.storage.GetCounter(name); !ok {
 			t.Errorf("expected counter metric %s to be collected", name)
 		}
+	}
+}
+
+func TestPollCounter(t *testing.T) {
+	memStorage := storage.NewMemStorage()
+	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second)
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer ts.Close()
+
+	agent.serverURL = ts.URL
+
+	agent.pollMetrics()
+	agent.pollMetrics()
+	if v, _ := agent.storage.GetCounter("PollCount"); v != 2 {
+		t.Errorf("expected PollCount 2, got %d", v)
+		return
+	}
+
+	if err := agent.pushMetrics(); err != nil {
+		t.Errorf("expected no error, got %v", err)
+		return
+	}
+
+	if v, _ := agent.storage.GetCounter("PollCount"); v != 0 {
+		t.Errorf("expected PollCount 0, got %d", v)
+		return
+	}
+
+	agent.pollMetrics()
+	if v, _ := agent.storage.GetCounter("PollCount"); v != 1 {
+		t.Errorf("expected PollCount 1, got %d", v)
+		return
 	}
 }

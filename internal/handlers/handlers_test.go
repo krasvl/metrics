@@ -42,6 +42,7 @@ func runTests(t *testing.T, handlerFunc http.HandlerFunc, tests []testCase) {
 
 		if res.StatusCode != tt.expectedStatus {
 			t.Errorf("Expected status %d, got %d", tt.expectedStatus, res.StatusCode)
+			return
 		}
 
 		if tt.expectedStatus == http.StatusOK {
@@ -105,7 +106,7 @@ func TestGetGaugeMetricHandler(t *testing.T) {
 		{"GET", "/value/gauge/{metricName}",
 			map[string]string{"metricName": "test"}, http.StatusOK, "1"},
 		{"GET", "/value/gauge/{metricName}",
-			map[string]string{"metricName": "nonexistent"}, http.StatusNotFound, ""},
+			map[string]string{"metricName": "noexist"}, http.StatusNotFound, ""},
 	}
 
 	memStorage := storage.NewMemStorage()
@@ -121,7 +122,7 @@ func TestGetCounterMetricHandler(t *testing.T) {
 		{"GET", "/value/counter/{metricName}",
 			map[string]string{"metricName": "test"}, http.StatusOK, "1"},
 		{"GET", "/value/counter/{metricName}",
-			map[string]string{"metricName": "nonexistent"}, http.StatusNotFound, ""},
+			map[string]string{"metricName": "noexist"}, http.StatusNotFound, ""},
 	}
 
 	memStorage := storage.NewMemStorage()

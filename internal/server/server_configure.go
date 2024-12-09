@@ -12,7 +12,7 @@ func GetConfiguredServer(addrDefault string) *Server {
 
 	flag.Parse()
 
-	if value, exist := os.LookupEnv("ADDRESS"); exist && value != "" {
+	if value, ok := os.LookupEnv("ADDRESS"); ok && value != "" {
 		addr = &value
 	}
 

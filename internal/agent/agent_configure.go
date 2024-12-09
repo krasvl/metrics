@@ -17,11 +17,11 @@ func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) *A
 
 	flag.Parse()
 
-	if value, exist := os.LookupEnv("ADDRESS"); exist && value != "" {
+	if value, ok := os.LookupEnv("ADDRESS"); ok && value != "" {
 		addr = &value
 	}
 
-	if value, exist := os.LookupEnv("REPORT_INTERVAL"); exist && value != "" {
+	if value, ok := os.LookupEnv("REPORT_INTERVAL"); ok && value != "" {
 		parsed, err := strconv.ParseInt(value, 10, 32)
 		if err == nil && parsed > 0 {
 			valueint := int(parsed)
@@ -29,7 +29,7 @@ func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) *A
 		}
 	}
 
-	if value, exist := os.LookupEnv("POLL_INTERVAL"); exist && value != "" {
+	if value, ok := os.LookupEnv("POLL_INTERVAL"); ok && value != "" {
 		parsed, err := strconv.ParseInt(value, 10, 32)
 		if err == nil && parsed > 0 {
 			valueint := int(parsed)

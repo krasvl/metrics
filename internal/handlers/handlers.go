@@ -69,9 +69,9 @@ func (h *MetricsHandler) GetGaugeMetricHandler(w http.ResponseWriter, r *http.Re
 		http.Error(w, noMetricNameMsg, http.StatusNotFound)
 		return
 	}
-	value, exist := h.storage.GetGauge(metricName)
+	value, ok := h.storage.GetGauge(metricName)
 
-	if !exist {
+	if !ok {
 		http.Error(w, noMetricMsg, http.StatusNotFound)
 		return
 	}
@@ -88,9 +88,9 @@ func (h *MetricsHandler) GetCounterMetricHandler(w http.ResponseWriter, r *http.
 		http.Error(w, noMetricNameMsg, http.StatusNotFound)
 		return
 	}
-	value, exist := h.storage.GetCounter(metricName)
+	value, ok := h.storage.GetCounter(metricName)
 
-	if !exist {
+	if !ok {
 		http.Error(w, noMetricMsg, http.StatusNotFound)
 		return
 	}
@@ -105,21 +105,9 @@ func (h *MetricsHandler) GetAllMetricsHandler(w http.ResponseWriter, r *http.Req
 	gauges := h.storage.GetAllGauges()
 	counters := h.storage.GetAllCounters()
 
-	gaugesData := make(map[string]float64)
-	for _, name := range gauges {
-		value, _ := h.storage.GetGauge(name)
-		gaugesData[name] = float64(value)
-	}
-
-	countersData := make(map[string]int)
-	for _, name := range counters {
-		value, _ := h.storage.GetCounter(name)
-		countersData[name] = int(value)
-	}
-
 	data := map[string]interface{}{
-		"Gauges":   gaugesData,
-		"Counters": countersData,
+		"Gauges":   gauges,
+		"Counters": counters,
 	}
 
 	tmpl := template.Must(template.New("metrics").Parse(`

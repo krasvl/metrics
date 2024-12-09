@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"log"
 	"math/rand/v2"
 	"net/http"
 	"runtime"
@@ -70,25 +71,22 @@ func (a *Agent) pollMetrics() {
 }
 
 func (a *Agent) pushMetrics() error {
-	gauges := a.storage.GetAllGauges()
-	for _, name := range gauges {
-		value, _ := a.storage.GetGauge(name)
+	for name, value := range a.storage.GetAllGauges() {
 		url := fmt.Sprintf("%s/update/gauge/%s/%v", a.serverURL, name, value)
-
 		if err := a.pushMetric(url); err != nil {
 			return err
 		}
+		a.storage.ClearGauge(name)
 	}
 
-	counters := a.storage.GetAllCounters()
-	for _, name := range counters {
-		value, _ := a.storage.GetCounter(name)
+	for name, value := range a.storage.GetAllCounters() {
 		url := fmt.Sprintf("%s/update/counter/%s/%v", a.serverURL, name, value)
-
 		if err := a.pushMetric(url); err != nil {
 			return err
 		}
+		a.storage.ClearCounter(name)
 	}
+
 	return nil
 }
 
@@ -116,7 +114,7 @@ func (a *Agent) Start() error {
 			a.pollMetrics()
 		case <-reportTicker.C:
 			if err := a.pushMetrics(); err != nil {
-				return err
+				log.Fatalf("Cant push metric error: %v", err)
 			}
 		}
 	}

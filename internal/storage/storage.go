@@ -4,13 +4,17 @@ type Gauge float64
 type Counter int
 
 type MetricsStorage interface {
-	GetAllGauges() []string
+	GetAllGauges() map[string]Gauge
 	GetGauge(name string) (Gauge, bool)
 	SetGauge(name string, value Gauge)
+	ClearGauge(name string)
+	ClearGauges()
 
-	GetAllCounters() []string
+	GetAllCounters() map[string]Counter
 	GetCounter(name string) (Counter, bool)
 	SetCounter(name string, value Counter)
+	ClearCounter(name string)
+	ClearCounters()
 }
 
 type MemStorage struct {
@@ -25,40 +29,48 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) GetAllGauges() []string {
-	names := make([]string, 0, len(ms.gauges))
-
-	for name := range ms.gauges {
-		names = append(names, name)
-	}
-
-	return names
+func (ms *MemStorage) GetAllGauges() map[string]Gauge {
+	return ms.gauges
 }
 
 func (ms *MemStorage) GetGauge(name string) (Gauge, bool) {
-	value, exist := ms.gauges[name]
-	return value, exist
+	value, ok := ms.gauges[name]
+	return value, ok
 }
 
 func (ms *MemStorage) SetGauge(name string, value Gauge) {
 	ms.gauges[name] = value
 }
 
-func (ms *MemStorage) GetAllCounters() []string {
-	names := make([]string, 0, len(ms.counters))
+func (ms *MemStorage) ClearGauge(name string) {
+	delete(ms.gauges, name)
+}
 
-	for name := range ms.counters {
-		names = append(names, name)
+func (ms *MemStorage) ClearGauges() {
+	for k := range ms.gauges {
+		delete(ms.gauges, k)
 	}
+}
 
-	return names
+func (ms *MemStorage) GetAllCounters() map[string]Counter {
+	return ms.counters
 }
 
 func (ms *MemStorage) GetCounter(name string) (Counter, bool) {
-	value, exist := ms.counters[name]
-	return value, exist
+	value, ok := ms.counters[name]
+	return value, ok
 }
 
 func (ms *MemStorage) SetCounter(name string, value Counter) {
 	ms.counters[name] += value
+}
+
+func (ms *MemStorage) ClearCounter(name string) {
+	delete(ms.counters, name)
+}
+
+func (ms *MemStorage) ClearCounters() {
+	for k := range ms.counters {
+		delete(ms.counters, k)
+	}
 }
