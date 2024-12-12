@@ -114,7 +114,7 @@ func (a *Agent) Start() error {
 			a.pollMetrics()
 		case <-reportTicker.C:
 			if err := a.pushMetrics(); err != nil {
-				log.Fatalf("Cant push metric error: %v", err)
+				log.Printf("Cant push metric error: %v", err)
 			}
 		}
 	}
