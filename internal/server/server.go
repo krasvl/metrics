@@ -16,8 +16,8 @@ import (
 type Server struct {
 	storage storage.MetricsStorage
 	handler *handlers.MetricsHandler
-	addr    string
 	logger  *zap.Logger
+	addr    string
 }
 
 func NewServer(addr string, metricsStorage storage.MetricsStorage, logger *zap.Logger) *Server {

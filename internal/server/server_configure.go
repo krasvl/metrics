@@ -21,7 +21,11 @@ func GetConfiguredServer(addrDefault string) *Server {
 	memStorage := storage.NewMemStorage()
 
 	logger, _ := zap.NewProduction()
-	defer logger.Sync()
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			logger.Error("Cant sync logger", zap.Error(err))
+		}
+	}()
 
 	return NewServer(*addr, memStorage, logger)
 }
