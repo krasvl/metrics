@@ -3,9 +3,11 @@ package server
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+
+	"go.uber.org/zap"
 
 	"metrics/internal/handlers"
 	"metrics/internal/storage"
@@ -15,16 +17,49 @@ type Server struct {
 	storage storage.MetricsStorage
 	handler *handlers.MetricsHandler
 	addr    string
+	logger  *zap.Logger
 }
 
-func NewServer(addr string, metricsStorage storage.MetricsStorage) *Server {
+func NewServer(addr string, metricsStorage storage.MetricsStorage, logger *zap.Logger) *Server {
 	handler := handlers.NewMetricsHandler(metricsStorage)
-	return &Server{addr: addr, storage: metricsStorage, handler: handler}
+	return &Server{addr: addr, storage: metricsStorage, handler: handler, logger: logger}
+}
+
+type ResponseWriter struct {
+	http.ResponseWriter
+	statusCode    int
+	contentLenght int
+}
+
+func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		writer := &ResponseWriter{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+
+		h.ServeHTTP(writer, r)
+
+		duration := time.Since(start)
+
+		logger.Info("Request processed",
+			zap.String("uri", r.RequestURI),
+			zap.String("method", r.Method),
+			zap.Duration("duration", duration),
+			zap.Int("status", writer.statusCode),
+			zap.Int("content_length", writer.contentLenght),
+		)
+	})
 }
 
 func (s *Server) Start() error {
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+
+	r.Use(func(next http.Handler) http.Handler {
+		return WithLogging(s.logger, next)
+	})
 
 	r.Get("/", s.handler.GetAllMetricsHandler)
 

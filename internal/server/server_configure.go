@@ -4,6 +4,8 @@ import (
 	"flag"
 	"os"
 
+	"go.uber.org/zap"
+
 	"metrics/internal/storage"
 )
 
@@ -17,5 +19,9 @@ func GetConfiguredServer(addrDefault string) *Server {
 	}
 
 	memStorage := storage.NewMemStorage()
-	return NewServer(*addr, memStorage)
+
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+
+	return NewServer(*addr, memStorage, logger)
 }
