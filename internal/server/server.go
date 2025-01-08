@@ -61,9 +61,11 @@ func (s *Server) Start() error {
 		return WithLogging(s.logger, next)
 	})
 
-	r.Get("/", s.handler.GetAllMetricsHandler)
+	r.Get("/", s.handler.GetMetricsReportHandler)
 
 	r.Route("/value", func(r chi.Router) {
+		r.Post("/", s.handler.GetMetricsHandler)
+
 		r.Get("/gauge/", s.handler.GetGaugeMetricHandler)
 		r.Get("/gauge/{metricName}", s.handler.GetGaugeMetricHandler)
 
@@ -76,6 +78,8 @@ func (s *Server) Start() error {
 	})
 
 	r.Route("/update", func(r chi.Router) {
+		r.Post("/", s.handler.SetMetricsHandler)
+
 		r.Post("/gauge/", s.handler.SetGaugeMetricHandler)
 		r.Post("/gauge/{metricName}/", s.handler.SetGaugeMetricHandler)
 		r.Post("/gauge/{metricName}/{metricValue}", s.handler.SetGaugeMetricHandler)

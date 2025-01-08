@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,24 +25,44 @@ func TestPushMetrics(t *testing.T) {
 			return
 		}
 
-		expectedGauge1URL := "/update/gauge/testGauge1/1.1"
-		expectedGauge2URL := "/update/gauge/testGauge2/1.2"
-		expectedCounter1URL := "/update/counter/testCounter1/1"
-		expectedCounter2URL := "/update/counter/testCounter2/2"
-
-		switch r.URL.Path {
-		case expectedGauge1URL:
-			w.WriteHeader(http.StatusOK)
-		case expectedGauge2URL:
-			w.WriteHeader(http.StatusOK)
-		case expectedCounter1URL:
-			w.WriteHeader(http.StatusOK)
-		case expectedCounter2URL:
-			w.WriteHeader(http.StatusOK)
-		default:
-			t.Errorf("unexpected URL: got %s", r.URL.Path)
-			http.Error(w, "Not Found", http.StatusNotFound)
+		if r.Header.Get("Content-Type") != "application/json" {
+			http.Error(w, "Bad Content-Type", http.StatusUnsupportedMediaType)
+			return
 		}
+
+		var metric Metrics
+		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+			http.Error(w, "Bad JSON", http.StatusBadRequest)
+			return
+		}
+
+		switch metric.ID {
+		case "testGauge1":
+			if metric.MType != "gauge" || *metric.Value != 1.1 {
+				http.Error(w, "Invalid metric", http.StatusBadRequest)
+				return
+			}
+		case "testGauge2":
+			if metric.MType != "gauge" || *metric.Value != 1.2 {
+				http.Error(w, "Invalid metric", http.StatusBadRequest)
+				return
+			}
+		case "testCounter1":
+			if metric.MType != "counter" || *metric.Delta != 1 {
+				http.Error(w, "Invalid metric", http.StatusBadRequest)
+				return
+			}
+		case "testCounter2":
+			if metric.MType != "counter" || *metric.Delta != 2 {
+				http.Error(w, "Invalid metric", http.StatusBadRequest)
+				return
+			}
+		default:
+			http.Error(w, "Not Found", http.StatusNotFound)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
 	}))
 	defer ts.Close()
 
