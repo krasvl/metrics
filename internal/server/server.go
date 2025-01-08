@@ -99,7 +99,10 @@ func (lrw *logResponseWriter) WriteHeader(code int) {
 func (lrw *logResponseWriter) Write(data []byte) (int, error) {
 	size, err := lrw.ResponseWriter.Write(data)
 	lrw.contentLength += size
-	return size, err
+	if err != nil {
+		return size, fmt.Errorf("cant log body: %w", err)
+	}
+	return size, nil
 }
 
 func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
