@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"compress/gzip"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -29,6 +30,23 @@ func TestPushMetrics(t *testing.T) {
 			http.Error(w, "Bad Content-Type", http.StatusUnsupportedMediaType)
 			return
 		}
+
+		if r.Header.Get("Content-Encoding") != "gzip" {
+			http.Error(w, "Bad Content-Encoding", http.StatusUnsupportedMediaType)
+			return
+		}
+
+		gz, err := gzip.NewReader(r.Body)
+		if err != nil {
+			http.Error(w, "cant gzip body", http.StatusInternalServerError)
+			return
+		}
+		defer func() {
+			if err := gz.Close(); err != nil {
+				http.Error(w, "cant close gzip writer", http.StatusInternalServerError)
+			}
+		}()
+		r.Body = gz
 
 		var metric Metrics
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {

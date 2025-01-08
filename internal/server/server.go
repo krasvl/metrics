@@ -1,6 +1,9 @@
 package server
 
 import (
+	"compress/gzip"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -25,22 +28,87 @@ func NewServer(addr string, metricsStorage storage.MetricsStorage, logger *zap.L
 	return &Server{addr: addr, storage: metricsStorage, handler: handler, logger: logger}
 }
 
-type ResponseWriter struct {
+type gzipResponseWriter struct {
+	http.ResponseWriter
+	Writer io.Writer
+}
+
+func (g *gzipResponseWriter) Write(b []byte) (int, error) {
+	n, err := g.Writer.Write(b)
+	if err != nil {
+		return n, fmt.Errorf("cant gzip body: %w", err)
+	}
+	return n, nil
+}
+
+func WithDecompress(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			gz, err := gzip.NewReader(r.Body)
+			if err != nil {
+				http.Error(w, "cant gzip body", http.StatusInternalServerError)
+				return
+			}
+			defer func() {
+				if err := gz.Close(); err != nil {
+					http.Error(w, "cant close gzip writer", http.StatusInternalServerError)
+				}
+			}()
+			r.Body = gz
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func WithCompress(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Accept-Encoding") == "gzip" &&
+			(r.Header.Get("Accept") == "application/json" || r.Header.Get("Accept") == "text/html") {
+			gz, err := gzip.NewWriterLevel(w, gzip.BestSpeed)
+			if err != nil {
+				http.Error(w, "cant gzip body", http.StatusInternalServerError)
+				return
+			}
+			defer func() {
+				if err := gz.Close(); err != nil {
+					http.Error(w, "cant close gzip writer", http.StatusInternalServerError)
+				}
+			}()
+
+			rw := &gzipResponseWriter{ResponseWriter: w, Writer: gz}
+
+			w.Header().Set("Content-Encoding", "gzip")
+			next.ServeHTTP(rw, r)
+		} else {
+			next.ServeHTTP(w, r)
+		}
+	})
+}
+
+type logResponseWriter struct {
 	http.ResponseWriter
 	statusCode    int
-	contentLenght int
+	contentLength int
+}
+
+func (lrw *logResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (lrw *logResponseWriter) Write(data []byte) (int, error) {
+	size, err := lrw.ResponseWriter.Write(data)
+	lrw.contentLength += size
+	return size, err
 }
 
 func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
-		writer := &ResponseWriter{
-			ResponseWriter: w,
-			statusCode:     http.StatusOK,
-		}
+		rw := &logResponseWriter{ResponseWriter: w}
 
-		h.ServeHTTP(writer, r)
+		h.ServeHTTP(rw, r)
 
 		duration := time.Since(start)
 
@@ -48,14 +116,17 @@ func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),
 			zap.Duration("duration", duration),
-			zap.Int("status", writer.statusCode),
-			zap.Int("content_length", writer.contentLenght),
+			zap.Int("status", rw.statusCode),
+			zap.Int("content_length", rw.contentLength),
 		)
 	})
 }
 
 func (s *Server) Start() error {
 	r := chi.NewRouter()
+
+	r.Use(WithDecompress)
+	r.Use(WithCompress)
 
 	r.Use(func(next http.Handler) http.Handler {
 		return WithLogging(s.logger, next)

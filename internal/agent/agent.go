@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -107,9 +110,19 @@ func (a *Agent) pushMetrics() error {
 }
 
 func (a *Agent) pushMetric(metric Metrics) error {
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	if err := json.NewEncoder(writer).Encode(metric); err != nil {
+		return fmt.Errorf("cant gzip metric: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("cant close gzip writer: %w", err)
+	}
+
 	resp, err := a.client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(metric).
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(compressed.Bytes()).
 		Post(a.serverURL + "/update/")
 
 	if err != nil {

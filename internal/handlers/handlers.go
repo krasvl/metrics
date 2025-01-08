@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -64,7 +63,7 @@ func (h *MetricsHandler) SetCounterMetricHandler(w http.ResponseWriter, r *http.
 }
 
 func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
 		return
 	}
@@ -139,7 +138,7 @@ func (h *MetricsHandler) GetCounterMetricHandler(w http.ResponseWriter, r *http.
 }
 
 func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	if r.Header.Get("Content-Type") != "application/json" {
 		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
 		return
 	}
