@@ -94,7 +94,7 @@ func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metric); err != nil {
-		http.Error(w, "Bad json", http.StatusBadRequest)
+		http.Error(w, "Bad json", http.StatusInternalServerError)
 		return
 	}
 }
@@ -173,7 +173,7 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metric); err != nil {
-		http.Error(w, "Bad json", http.StatusBadRequest)
+		http.Error(w, "Bad json", http.StatusInternalServerError)
 		return
 	}
 }

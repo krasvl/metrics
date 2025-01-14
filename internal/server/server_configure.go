@@ -15,7 +15,8 @@ func GetConfiguredServer(
 	addrDefault string,
 	intervalDefault int,
 	fileDefault string,
-	restoreDefault bool) (*Server, error) {
+	restoreDefault bool,
+) (*Server, error) {
 	addr := flag.String("a", addrDefault, "address")
 	interval := flag.Int("i", intervalDefault, "interval")
 	file := flag.String("f", fileDefault, "file")
@@ -50,7 +51,7 @@ func GetConfiguredServer(
 		}
 	}()
 
-	fileStorage, err := storage.NewFileStorage(*file, *interval, *restore)
+	fileStorage, err := storage.NewFileStorage(*file, *interval, *restore, logger)
 	if err != nil {
 		return nil, fmt.Errorf("cant create fileStorage: %w", err)
 	}

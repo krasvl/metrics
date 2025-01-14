@@ -3,9 +3,10 @@ package storage
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 type Metric struct {
@@ -17,15 +18,17 @@ type Metric struct {
 
 type FileStorage struct {
 	MemStorage
+	logger       *zap.Logger
 	file         string
 	pushInterval int
 }
 
-func NewFileStorage(file string, pushInterval int, restore bool) (*FileStorage, error) {
+func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Logger) (*FileStorage, error) {
 	storage := &FileStorage{
 		MemStorage:   *NewMemStorage(),
 		file:         file,
 		pushInterval: pushInterval,
+		logger:       logger,
 	}
 
 	if !restore {
@@ -64,8 +67,8 @@ func NewFileStorage(file string, pushInterval int, restore bool) (*FileStorage, 
 		ticker := time.NewTicker(time.Duration(pushInterval) * time.Second)
 		go func() {
 			for range ticker.C {
-				if err := storage.SaveToFile(); err != nil {
-					fmt.Printf("cant save: %v\n", err)
+				if err := storage.saveToFile(); err != nil {
+					logger.Error("cant create file", zap.String("file", file), zap.Error(err))
 				}
 			}
 		}()
@@ -74,7 +77,7 @@ func NewFileStorage(file string, pushInterval int, restore bool) (*FileStorage, 
 	return storage, nil
 }
 
-func (fs *FileStorage) SaveToFile() error {
+func (fs *FileStorage) saveToFile() error {
 	f, err := os.Create(fs.file)
 	if err != nil {
 		return fmt.Errorf("cant create file: %w", err)
@@ -115,8 +118,8 @@ func (fs *FileStorage) SaveToFile() error {
 func (fs *FileStorage) SetGauge(name string, value Gauge) {
 	fs.MemStorage.SetGauge(name, value)
 	if fs.pushInterval == 0 {
-		if err := fs.SaveToFile(); err != nil {
-			log.Printf("Cant save metric: %v", err)
+		if err := fs.saveToFile(); err != nil {
+			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
 		}
 	}
 }
@@ -124,8 +127,8 @@ func (fs *FileStorage) SetGauge(name string, value Gauge) {
 func (fs *FileStorage) ClearGauge(name string) {
 	fs.MemStorage.ClearGauge(name)
 	if fs.pushInterval == 0 {
-		if err := fs.SaveToFile(); err != nil {
-			log.Printf("Cant save metric: %v", err)
+		if err := fs.saveToFile(); err != nil {
+			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
 		}
 	}
 }
@@ -133,8 +136,8 @@ func (fs *FileStorage) ClearGauge(name string) {
 func (fs *FileStorage) ClearGauges() {
 	fs.MemStorage.ClearGauges()
 	if fs.pushInterval == 0 {
-		if err := fs.SaveToFile(); err != nil {
-			log.Printf("Cant save metric: %v", err)
+		if err := fs.saveToFile(); err != nil {
+			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
 		}
 	}
 }
@@ -142,8 +145,8 @@ func (fs *FileStorage) ClearGauges() {
 func (fs *FileStorage) SetCounter(name string, value Counter) {
 	fs.MemStorage.SetCounter(name, value)
 	if fs.pushInterval == 0 {
-		if err := fs.SaveToFile(); err != nil {
-			log.Printf("Cant save metric: %v", err)
+		if err := fs.saveToFile(); err != nil {
+			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
 		}
 	}
 }
@@ -151,8 +154,8 @@ func (fs *FileStorage) SetCounter(name string, value Counter) {
 func (fs *FileStorage) ClearCounter(name string) {
 	fs.MemStorage.ClearCounter(name)
 	if fs.pushInterval == 0 {
-		if err := fs.SaveToFile(); err != nil {
-			log.Printf("Cant save metric: %v", err)
+		if err := fs.saveToFile(); err != nil {
+			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
 		}
 	}
 }
@@ -160,8 +163,8 @@ func (fs *FileStorage) ClearCounter(name string) {
 func (fs *FileStorage) ClearCounters() {
 	fs.MemStorage.ClearCounters()
 	if fs.pushInterval == 0 {
-		if err := fs.SaveToFile(); err != nil {
-			log.Printf("Cant save metric: %v", err)
+		if err := fs.saveToFile(); err != nil {
+			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
 		}
 	}
 }

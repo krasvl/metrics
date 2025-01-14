@@ -128,12 +128,12 @@ func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 func (s *Server) Start() error {
 	r := chi.NewRouter()
 
-	r.Use(WithDecompress)
-	r.Use(WithCompress)
-
 	r.Use(func(next http.Handler) http.Handler {
 		return WithLogging(s.logger, next)
 	})
+
+	r.Use(WithDecompress)
+	r.Use(WithCompress)
 
 	r.Get("/", s.handler.GetMetricsReportHandler)
 
