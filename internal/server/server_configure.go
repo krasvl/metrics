@@ -16,11 +16,13 @@ func GetConfiguredServer(
 	intervalDefault int,
 	fileDefault string,
 	restoreDefault bool,
+	databaseDefault string,
 ) (*Server, error) {
 	addr := flag.String("a", addrDefault, "address")
 	interval := flag.Int("i", intervalDefault, "interval")
 	file := flag.String("f", fileDefault, "file")
 	restore := flag.Bool("r", restoreDefault, "restore")
+	database := flag.String("d", databaseDefault, "database_dsn")
 
 	flag.Parse()
 
@@ -43,24 +45,43 @@ func GetConfiguredServer(
 			restore = &parsed
 		}
 	}
+	if value, ok := os.LookupEnv("DATABASE_DSN"); ok && value != "" {
+		database = &value
+	}
 
 	logger, err := zap.NewProduction()
 	if err != nil {
 		return nil, fmt.Errorf("cant create logger: %w", err)
 	}
 
-	fileStorage, err := storage.NewFileStorage(*file, *interval, *restore, logger)
-	if err != nil {
-		return nil, fmt.Errorf("cant create fileStorage: %w", err)
+	var serverStorage storage.MetricsStorage = nil
+
+	if *database != "" {
+		serverStorage, err = storage.NewPosgresStorage(*database, logger)
+		if err != nil {
+			logger.Warn("cant create postgres storage", zap.Error(err))
+		}
 	}
 
-	server := NewServer(*addr, fileStorage, logger)
+	if *file != "" && serverStorage == nil {
+		serverStorage, err = storage.NewFileStorage(*file, *interval, *restore, logger)
+		if err != nil {
+			logger.Warn("cant create file storage", zap.Error(err))
+		}
+	}
+
+	if serverStorage == nil {
+		serverStorage = storage.NewMemStorage()
+	}
+
+	server := NewServer(*addr, serverStorage, logger)
 
 	logger.Info("server started:",
 		zap.String("addr", *addr),
 		zap.Int("interval", *interval),
 		zap.String("file", *file),
 		zap.Bool("restore", *restore),
+		zap.String("database", *database),
 	)
 
 	return server, nil

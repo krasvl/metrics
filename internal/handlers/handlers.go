@@ -221,23 +221,27 @@ func (h *MetricsHandler) GetMetricsReportHandler(w http.ResponseWriter, r *http.
 	}
 }
 
-func (h *MetricsHandler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
-	dbstorage, err := storage.NewPosgresStorage(
-		"postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable",
-		h.logger,
-	)
+func (h *MetricsHandler) PingHandler(w http.ResponseWriter, r *http.Request) {
+	switch dbstorage := h.storage.(type) {
+	case *storage.PostgresStorage:
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+		if err := dbstorage.Ping(ctx); err != nil {
+			http.Error(w, "cant ping db", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
 
-	if err != nil {
-		http.Error(w, "cant connect db", http.StatusInternalServerError)
+	case *storage.MemStorage:
+		http.Error(w, "server use memory storage", http.StatusInternalServerError)
+		return
+
+	case *storage.FileStorage:
+		http.Error(w, "server use file storage", http.StatusInternalServerError)
+		return
+
+	default:
+		http.Error(w, "server use unknown storage", http.StatusInternalServerError)
 		return
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	if err = dbstorage.Ping(ctx); err != nil {
-		http.Error(w, "cant ping db", http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
 }

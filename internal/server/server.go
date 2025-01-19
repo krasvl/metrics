@@ -137,6 +137,8 @@ func (s *Server) Start() error {
 
 	r.Get("/", s.handler.GetMetricsReportHandler)
 
+	r.Get("/ping", s.handler.PingHandler)
+
 	r.Route("/value", func(r chi.Router) {
 		r.Post("/", s.handler.GetMetricsHandler)
 
@@ -166,8 +168,6 @@ func (s *Server) Start() error {
 			http.Error(w, "Invalid metric type", http.StatusBadRequest)
 		})
 	})
-
-	r.Get("/ping", s.handler.PingDBHandler)
 
 	if err := http.ListenAndServe(s.addr, r); err != nil {
 		log.Fatalf("Server error: %v", err)

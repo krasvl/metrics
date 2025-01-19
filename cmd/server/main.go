@@ -9,9 +9,10 @@ func main() {
 	addrDefault := "localhost:8080"
 	intervalDefault := 300
 	fileDefault := "./store"
-	restore := true
+	restoreDefault := true
+	databaseDefault := ""
 
-	srv, err := server.GetConfiguredServer(addrDefault, intervalDefault, fileDefault, restore)
+	srv, err := server.GetConfiguredServer(addrDefault, intervalDefault, fileDefault, restoreDefault, databaseDefault)
 
 	if err != nil {
 		log.Fatalf("Server configure error: %v", err)
