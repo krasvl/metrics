@@ -53,7 +53,7 @@ func TestPushMetrics(t *testing.T) {
 		}()
 		r.Body = gz
 
-		var metric Metrics
+		var metric Metric
 		if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 			http.Error(w, "Bad JSON", http.StatusBadRequest)
 			return

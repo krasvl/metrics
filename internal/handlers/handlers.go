@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 	"metrics/internal/storage"
 )
 
-type Metrics struct {
+type Metric struct {
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
 	ID    string   `json:"id"`
@@ -74,50 +75,6 @@ func (h *MetricsHandler) SetCounterMetricHandler(w http.ResponseWriter, r *http.
 	w.WriteHeader(http.StatusOK)
 }
 
-func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	if r.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
-		return
-	}
-
-	var metric Metrics
-	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-		http.Error(w, "Bad json", http.StatusBadRequest)
-		return
-	}
-
-	switch metric.MType {
-	case "gauge":
-		if metric.Value == nil {
-			http.Error(w, "Gauge must be float32", http.StatusBadRequest)
-			return
-		}
-		if err := h.storage.SetGauge(ctx, metric.ID, storage.Gauge(*metric.Value)); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	case "counter":
-		if metric.Delta == nil {
-			http.Error(w, "Counter must be int32", http.StatusBadRequest)
-			return
-		}
-		if err := h.storage.SetCounter(ctx, metric.ID, storage.Counter(*metric.Delta)); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	default:
-		http.Error(w, "No such metric", http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(metric); err != nil {
-		http.Error(w, "Bad json", http.StatusInternalServerError)
-		return
-	}
-}
-
 func (h *MetricsHandler) GetGaugeMetricHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	metricName := chi.URLParam(r, "metricName")
@@ -175,7 +132,7 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	var metric Metrics
+	var metric Metric
 	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 		http.Error(w, "Bad json", http.StatusBadRequest)
 		return
@@ -218,15 +175,116 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 	}
 }
 
+func (h *MetricsHandler) SetMetricHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	var metric Metric
+	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
+		http.Error(w, "Bad json", http.StatusBadRequest)
+		return
+	}
+
+	switch metric.MType {
+	case "gauge":
+		if metric.Value == nil {
+			http.Error(w, "Gauge must be float32", http.StatusBadRequest)
+			return
+		}
+		if err := h.storage.SetGauge(ctx, metric.ID, storage.Gauge(*metric.Value)); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	case "counter":
+		if metric.Delta == nil {
+			http.Error(w, "Counter must be int32", http.StatusBadRequest)
+			return
+		}
+		if err := h.storage.SetCounter(ctx, metric.ID, storage.Counter(*metric.Delta)); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	default:
+		http.Error(w, "No such metric", http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metric); err != nil {
+		http.Error(w, "Bad json", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if r.Header.Get("Content-Type") != "application/json" {
+		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
+		return
+	}
+
+	var metrics []Metric
+	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
+		http.Error(w, "Bad json", http.StatusBadRequest)
+		return
+	}
+
+	gaugeMetrics := make(map[string]storage.Gauge)
+	counterMetrics := make(map[string]storage.Counter)
+
+	for _, metric := range metrics {
+		switch metric.MType {
+		case "gauge":
+			if metric.Value == nil {
+				http.Error(w, fmt.Sprintf("Gauge %s must be float32", metric.ID), http.StatusBadRequest)
+				return
+			}
+			gaugeMetrics[metric.ID] = storage.Gauge(*metric.Value)
+		case "counter":
+			if metric.Delta == nil {
+				http.Error(w, fmt.Sprintf("Counter %s must be int32", metric.ID), http.StatusBadRequest)
+				return
+			}
+			counterMetrics[metric.ID] = storage.Counter(*metric.Delta)
+		default:
+			http.Error(w, fmt.Sprintf("No metric %s type", metric.ID), http.StatusBadRequest)
+			return
+		}
+	}
+
+	if len(gaugeMetrics) > 0 {
+		if err := h.storage.SetGauges(ctx, gaugeMetrics); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if len(counterMetrics) > 0 {
+		if err := h.storage.SetCounters(ctx, counterMetrics); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(metrics); err != nil {
+		http.Error(w, "Bad json", http.StatusInternalServerError)
+		return
+	}
+}
+
 func (h *MetricsHandler) GetMetricsReportHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	gauges, err := h.storage.GetAllGauges(ctx)
+	gauges, err := h.storage.GetGauges(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	counters, err := h.storage.GetAllCounters(ctx)
+	counters, err := h.storage.GetCounters(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

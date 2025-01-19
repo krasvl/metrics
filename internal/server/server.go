@@ -153,8 +153,10 @@ func (s *Server) Start() error {
 		})
 	})
 
+	r.Post("/updates", s.handler.SetMetricsHandler)
+
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", s.handler.SetMetricsHandler)
+		r.Post("/", s.handler.SetMetricHandler)
 
 		r.Post("/gauge/", s.handler.SetGaugeMetricHandler)
 		r.Post("/gauge/{metricName}/", s.handler.SetGaugeMetricHandler)

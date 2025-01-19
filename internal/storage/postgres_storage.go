@@ -86,7 +86,7 @@ func (s *PostgresStorage) Close() error {
 	return nil
 }
 
-func (s *PostgresStorage) GetAllGauges(ctx context.Context) (map[string]Gauge, error) {
+func (s *PostgresStorage) GetGauges(ctx context.Context) (map[string]Gauge, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT name, value FROM gauges")
 	if err != nil {
 		s.logger.Error("cant query gauges", zap.Error(err))
@@ -144,6 +144,50 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, value Gauge
 	return nil
 }
 
+func (s *PostgresStorage) SetGauges(ctx context.Context, values map[string]Gauge) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		s.logger.Error("cant start transaction", zap.Error(err))
+		return fmt.Errorf("cant start transaction: %w", err)
+	}
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO gauges (name, value) 
+		VALUES ($1, $2) 
+		ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value
+	`)
+	if err != nil {
+		s.logger.Error("cant prepare statement", zap.Error(err))
+		_ = tx.Rollback()
+		return fmt.Errorf("cant prepare statement: %w", err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			s.logger.Error("cant close stmt", zap.Error(err))
+		}
+	}()
+
+	for name, value := range values {
+		if _, err := stmt.ExecContext(ctx, name, value); err != nil {
+			s.logger.Error(
+				"cant execute statement",
+				zap.String("name", name),
+				zap.Float64("value", float64(value)),
+				zap.Error(err),
+			)
+			_ = tx.Rollback()
+			return fmt.Errorf("cant execute statement: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		s.logger.Error("cant commit transaction", zap.Error(err))
+		return fmt.Errorf("cant commit transaction: %w", err)
+	}
+
+	return nil
+}
+
 func (s *PostgresStorage) ClearGauge(ctx context.Context, name string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM gauges WHERE name = $1", name)
 	if err != nil {
@@ -162,7 +206,7 @@ func (s *PostgresStorage) ClearGauges(ctx context.Context) error {
 	return nil
 }
 
-func (s *PostgresStorage) GetAllCounters(ctx context.Context) (map[string]Counter, error) {
+func (s *PostgresStorage) GetCounters(ctx context.Context) (map[string]Counter, error) {
 	rows, err := s.db.QueryContext(ctx, "SELECT name, value FROM counters")
 	if err != nil {
 		s.logger.Error("cant query counters", zap.Error(err))
@@ -217,6 +261,50 @@ func (s *PostgresStorage) SetCounter(ctx context.Context, name string, value Cou
 		s.logger.Error("cant set counter", zap.String("name", name), zap.Int("value", int(value)), zap.Error(err))
 		return fmt.Errorf("cant set counter: %w", err)
 	}
+	return nil
+}
+
+func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Counter) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		s.logger.Error("cant start transaction", zap.Error(err))
+		return fmt.Errorf("cant start transaction: %w", err)
+	}
+
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO counters (name, value) 
+		VALUES ($1, $2) 
+		ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value
+	`)
+	if err != nil {
+		s.logger.Error("cant prepare statement", zap.Error(err))
+		_ = tx.Rollback()
+		return fmt.Errorf("cant prepare statement: %w", err)
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			s.logger.Error("cant close stmt", zap.Error(err))
+		}
+	}()
+
+	for name, value := range values {
+		if _, err := stmt.ExecContext(ctx, name, value); err != nil {
+			s.logger.Error(
+				"cant execute statement",
+				zap.String("name", name),
+				zap.Int("value", int(value)),
+				zap.Error(err),
+			)
+			_ = tx.Rollback()
+			return fmt.Errorf("cant execute statement: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		s.logger.Error("cant commit transaction", zap.Error(err))
+		return fmt.Errorf("cant commit transaction: %w", err)
+	}
+
 	return nil
 }
 

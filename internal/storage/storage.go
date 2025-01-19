@@ -8,15 +8,17 @@ type Gauge float64
 type Counter int
 
 type MetricsStorage interface {
-	GetAllGauges(ctx context.Context) (map[string]Gauge, error)
 	GetGauge(ctx context.Context, name string) (Gauge, bool, error)
+	GetGauges(ctx context.Context) (map[string]Gauge, error)
 	SetGauge(ctx context.Context, name string, value Gauge) error
+	SetGauges(ctx context.Context, values map[string]Gauge) error
 	ClearGauge(ctx context.Context, name string) error
 	ClearGauges(ctx context.Context) error
 
-	GetAllCounters(ctx context.Context) (map[string]Counter, error)
 	GetCounter(ctx context.Context, name string) (Counter, bool, error)
+	GetCounters(ctx context.Context) (map[string]Counter, error)
 	SetCounter(ctx context.Context, name string, value Counter) error
+	SetCounters(ctx context.Context, values map[string]Counter) error
 	ClearCounter(ctx context.Context, name string) error
 	ClearCounters(ctx context.Context) error
 }
@@ -33,7 +35,7 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) GetAllGauges(ctx context.Context) (map[string]Gauge, error) {
+func (ms *MemStorage) GetGauges(ctx context.Context) (map[string]Gauge, error) {
 	return ms.gauges, nil
 }
 
@@ -50,6 +52,13 @@ func (ms *MemStorage) SetGauge(ctx context.Context, name string, value Gauge) er
 	return nil
 }
 
+func (ms *MemStorage) SetGauges(ctx context.Context, values map[string]Gauge) error {
+	for name, value := range values {
+		ms.gauges[name] = value
+	}
+	return nil
+}
+
 func (ms *MemStorage) ClearGauge(ctx context.Context, name string) error {
 	delete(ms.gauges, name)
 	return nil
@@ -62,7 +71,7 @@ func (ms *MemStorage) ClearGauges(ctx context.Context) error {
 	return nil
 }
 
-func (ms *MemStorage) GetAllCounters(ctx context.Context) (map[string]Counter, error) {
+func (ms *MemStorage) GetCounters(ctx context.Context) (map[string]Counter, error) {
 	return ms.counters, nil
 }
 
@@ -76,6 +85,13 @@ func (ms *MemStorage) GetCounter(ctx context.Context, name string) (Counter, boo
 
 func (ms *MemStorage) SetCounter(ctx context.Context, name string, value Counter) error {
 	ms.counters[name] += value
+	return nil
+}
+
+func (ms *MemStorage) SetCounters(ctx context.Context, values map[string]Counter) error {
+	for name, value := range values {
+		ms.counters[name] += value
+	}
 	return nil
 }
 

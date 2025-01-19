@@ -95,7 +95,7 @@ func (fs *FileStorage) saveToFile(ctx context.Context) error {
 
 	data := []FileMetric{}
 
-	gauges, _ := fs.GetAllGauges(ctx)
+	gauges, _ := fs.GetGauges(ctx)
 	for id, value := range gauges {
 		metric := FileMetric{
 			ID:    id,
@@ -105,7 +105,7 @@ func (fs *FileStorage) saveToFile(ctx context.Context) error {
 		data = append(data, metric)
 	}
 
-	counters, _ := fs.GetAllCounters(ctx)
+	counters, _ := fs.GetCounters(ctx)
 	for id, delta := range counters {
 		metric := FileMetric{
 			ID:    id,
@@ -124,6 +124,17 @@ func (fs *FileStorage) saveToFile(ctx context.Context) error {
 
 func (fs *FileStorage) SetGauge(ctx context.Context, name string, value Gauge) error {
 	_ = fs.MemStorage.SetGauge(ctx, name, value)
+	if fs.pushInterval == 0 {
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
+		}
+	}
+	return nil
+}
+
+func (fs *FileStorage) SetGauges(ctx context.Context, values map[string]Gauge) error {
+	_ = fs.MemStorage.SetGauges(ctx, values)
 	if fs.pushInterval == 0 {
 		if err := fs.saveToFile(ctx); err != nil {
 			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
@@ -157,6 +168,17 @@ func (fs *FileStorage) ClearGauges(ctx context.Context) error {
 
 func (fs *FileStorage) SetCounter(ctx context.Context, name string, value Counter) error {
 	_ = fs.MemStorage.SetCounter(ctx, name, value)
+	if fs.pushInterval == 0 {
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
+		}
+	}
+	return nil
+}
+
+func (fs *FileStorage) SetCounters(ctx context.Context, values map[string]Counter) error {
+	_ = fs.MemStorage.SetCounters(ctx, values)
 	if fs.pushInterval == 0 {
 		if err := fs.saveToFile(ctx); err != nil {
 			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
