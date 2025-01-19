@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: praktikum
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    command: ["./server", "-a", "0.0.0.0:8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_DSN: "postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable"
+    ports:
+      - "8080:8080"
+
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    command: ["./agent", "-a", "server:8080"]
+    depends_on:
+      server:
+        condition: service_started

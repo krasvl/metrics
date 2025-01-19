@@ -24,7 +24,7 @@ type Server struct {
 }
 
 func NewServer(addr string, metricsStorage storage.MetricsStorage, logger *zap.Logger) *Server {
-	handler := handlers.NewMetricsHandler(metricsStorage)
+	handler := handlers.NewMetricsHandler(metricsStorage, logger)
 	return &Server{addr: addr, storage: metricsStorage, handler: handler, logger: logger}
 }
 
@@ -166,6 +166,8 @@ func (s *Server) Start() error {
 			http.Error(w, "Invalid metric type", http.StatusBadRequest)
 		})
 	})
+
+	r.Get("/ping", s.handler.PingDBHandler)
 
 	if err := http.ListenAndServe(s.addr, r); err != nil {
 		log.Fatalf("Server error: %v", err)

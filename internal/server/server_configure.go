@@ -44,17 +44,24 @@ func GetConfiguredServer(
 		}
 	}
 
-	logger, _ := zap.NewProduction()
-	defer func() {
-		if err := logger.Sync(); err != nil {
-			logger.Error("Cant sync logger", zap.Error(err))
-		}
-	}()
+	logger, err := zap.NewProduction()
+	if err != nil {
+		return nil, fmt.Errorf("cant create logger: %w", err)
+	}
 
 	fileStorage, err := storage.NewFileStorage(*file, *interval, *restore, logger)
 	if err != nil {
 		return nil, fmt.Errorf("cant create fileStorage: %w", err)
 	}
 
-	return NewServer(*addr, fileStorage, logger), nil
+	server := NewServer(*addr, fileStorage, logger)
+
+	logger.Info("server started:",
+		zap.String("addr", *addr),
+		zap.Int("interval", *interval),
+		zap.String("file", *file),
+		zap.Bool("restore", *restore),
+	)
+
+	return server, nil
 }

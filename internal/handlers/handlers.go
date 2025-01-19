@@ -1,19 +1,18 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"html/template"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 
 	"metrics/internal/storage"
 )
-
-type MetricsHandler struct {
-	storage storage.MetricsStorage
-}
 
 type Metrics struct {
 	Delta *int64   `json:"delta,omitempty"`
@@ -22,8 +21,13 @@ type Metrics struct {
 	MType string   `json:"type"`
 }
 
-func NewMetricsHandler(metricsStorage storage.MetricsStorage) *MetricsHandler {
-	return &MetricsHandler{storage: metricsStorage}
+type MetricsHandler struct {
+	storage storage.MetricsStorage
+	logger  *zap.Logger
+}
+
+func NewMetricsHandler(metricsStorage storage.MetricsStorage, logger *zap.Logger) *MetricsHandler {
+	return &MetricsHandler{storage: metricsStorage, logger: logger}
 }
 
 func (h *MetricsHandler) SetGaugeMetricHandler(w http.ResponseWriter, r *http.Request) {
@@ -215,4 +219,25 @@ func (h *MetricsHandler) GetMetricsReportHandler(w http.ResponseWriter, r *http.
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Cant render report", http.StatusInternalServerError)
 	}
+}
+
+func (h *MetricsHandler) PingDBHandler(w http.ResponseWriter, r *http.Request) {
+	dbstorage, err := storage.NewPosgresStorage(
+		"postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable",
+		h.logger,
+	)
+
+	if err != nil {
+		http.Error(w, "cant connect db", http.StatusInternalServerError)
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	if err = dbstorage.Ping(ctx); err != nil {
+		http.Error(w, "cant ping db", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

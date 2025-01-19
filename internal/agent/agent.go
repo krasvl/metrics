@@ -4,14 +4,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
-	"fmt"
-	"log"
 	"math/rand/v2"
 	"net/http"
 	"runtime"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"go.uber.org/zap"
 
 	"metrics/internal/storage"
 )
@@ -19,6 +18,7 @@ import (
 type Agent struct {
 	storage      storage.MetricsStorage
 	client       *resty.Client
+	logger       *zap.Logger
 	serverURL    string
 	pollInterval time.Duration
 	pushInterval time.Duration
@@ -34,13 +34,15 @@ type Metrics struct {
 func NewAgent(
 	serverURL string,
 	metricsStorage storage.MetricsStorage,
-	pollInterval, pushInterval time.Duration) *Agent {
+	pollInterval, pushInterval time.Duration,
+	logger *zap.Logger) *Agent {
 	return &Agent{
 		serverURL:    serverURL,
 		pollInterval: pollInterval,
 		pushInterval: pushInterval,
 		storage:      metricsStorage,
 		client:       resty.New(),
+		logger:       logger,
 	}
 }
 
@@ -80,7 +82,7 @@ func (a *Agent) pollMetrics() {
 	a.storage.SetGauge("RandomValue", storage.Gauge(rand.Float64()))
 }
 
-func (a *Agent) pushMetrics() error {
+func (a *Agent) pushMetrics() {
 	for name, value := range a.storage.GetAllGauges() {
 		val := float64(value)
 		metric := Metrics{
@@ -88,9 +90,7 @@ func (a *Agent) pushMetrics() error {
 			MType: "gauge",
 			Value: &val,
 		}
-		if err := a.pushMetric(metric); err != nil {
-			return err
-		}
+		a.pushMetric(metric)
 		a.storage.ClearGauge(name)
 	}
 
@@ -101,22 +101,21 @@ func (a *Agent) pushMetrics() error {
 			MType: "counter",
 			Delta: &delta,
 		}
-		if err := a.pushMetric(metric); err != nil {
-			return err
-		}
+		a.pushMetric(metric)
 		a.storage.ClearCounter(name)
 	}
-	return nil
 }
 
-func (a *Agent) pushMetric(metric Metrics) error {
+func (a *Agent) pushMetric(metric Metrics) {
 	var compressed bytes.Buffer
 	writer := gzip.NewWriter(&compressed)
 	if err := json.NewEncoder(writer).Encode(metric); err != nil {
-		return fmt.Errorf("cant gzip metric: %w", err)
+		a.logger.Error("cant gzip metric", zap.Error(err))
+		return
 	}
 	if err := writer.Close(); err != nil {
-		return fmt.Errorf("cant close gzip writer: %w", err)
+		a.logger.Error("cant close gzip writer", zap.Error(err))
+		return
 	}
 
 	resp, err := a.client.R().
@@ -126,26 +125,40 @@ func (a *Agent) pushMetric(metric Metrics) error {
 		Post(a.serverURL + "/update/")
 
 	if err != nil {
-		return fmt.Errorf("cant send metric: %w", err)
+		a.logger.Error("cant send metric", zap.Error(err))
+		return
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("bad status code: %d", resp.StatusCode())
+		a.logger.Error("bad status code", zap.Error(err))
+		return
 	}
-	return nil
+}
+
+func (a *Agent) testPing() {
+	resp, err := a.client.R().Get(a.serverURL + "/ping")
+	if err != nil {
+		a.logger.Error("cant ping db", zap.Error(err))
+		return
+	}
+	if resp.StatusCode() != http.StatusOK {
+		a.logger.Error("ping db fail", zap.Error(err))
+		return
+	}
+	a.logger.Info("ping success", zap.Error(err))
 }
 
 func (a *Agent) Start() error {
 	pollTicker := time.NewTicker(a.pollInterval)
 	reportTicker := time.NewTicker(a.pushInterval)
 
+	a.testPing()
+
 	for {
 		select {
 		case <-pollTicker.C:
 			a.pollMetrics()
 		case <-reportTicker.C:
-			if err := a.pushMetrics(); err != nil {
-				log.Printf("Cant push metric error: %v", err)
-			}
+			a.pushMetrics()
 		}
 	}
 }

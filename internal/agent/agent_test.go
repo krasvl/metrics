@@ -9,11 +9,14 @@ import (
 	"time"
 
 	"metrics/internal/storage"
+
+	"go.uber.org/zap"
 )
 
 func TestPushMetrics(t *testing.T) {
 	memStorage := storage.NewMemStorage()
-	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second)
+	logger, _ := zap.NewProduction()
+	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second, logger)
 
 	agent.storage.SetGauge("testGauge1", storage.Gauge(1.1))
 	agent.storage.SetGauge("testGauge2", storage.Gauge(1.2))
@@ -86,10 +89,7 @@ func TestPushMetrics(t *testing.T) {
 
 	agent.serverURL = ts.URL
 
-	if err := agent.pushMetrics(); err != nil {
-		t.Errorf("expected no error, got %v", err)
-		return
-	}
+	agent.pushMetrics()
 }
 
 func TestPollMetrics(t *testing.T) {
@@ -129,8 +129,9 @@ func TestPollMetrics(t *testing.T) {
 		"PollCount",
 	}
 
+	logger, _ := zap.NewProduction()
 	memStorage := storage.NewMemStorage()
-	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second)
+	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second, logger)
 
 	agent.pollMetrics()
 
@@ -148,8 +149,9 @@ func TestPollMetrics(t *testing.T) {
 }
 
 func TestPollCounter(t *testing.T) {
+	logger, _ := zap.NewProduction()
 	memStorage := storage.NewMemStorage()
-	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second)
+	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second, logger)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 	defer ts.Close()
@@ -163,10 +165,7 @@ func TestPollCounter(t *testing.T) {
 		return
 	}
 
-	if err := agent.pushMetrics(); err != nil {
-		t.Errorf("expected no error, got %v", err)
-		return
-	}
+	agent.pushMetrics()
 
 	if v, _ := agent.storage.GetCounter("PollCount"); v != 0 {
 		t.Errorf("expected PollCount 0, got %d", v)

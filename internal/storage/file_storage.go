@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type Metric struct {
+type FileMetric struct {
 	Delta *Counter `json:"delta,omitempty"`
 	Value *Gauge   `json:"value,omitempty"`
 	ID    string   `json:"id"`
@@ -45,7 +45,7 @@ func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Log
 		}
 	}()
 
-	data := []Metric{}
+	data := []FileMetric{}
 	if err := json.NewDecoder(f).Decode(&data); err != nil && err.Error() != "EOF" {
 		return nil, fmt.Errorf("cant decode file: %w", err)
 	}
@@ -88,10 +88,10 @@ func (fs *FileStorage) saveToFile() error {
 		}
 	}()
 
-	data := []Metric{}
+	data := []FileMetric{}
 
 	for id, value := range fs.GetAllGauges() {
-		metric := Metric{
+		metric := FileMetric{
 			ID:    id,
 			MType: "gauge",
 			Value: &value,
@@ -100,7 +100,7 @@ func (fs *FileStorage) saveToFile() error {
 	}
 
 	for id, delta := range fs.GetAllCounters() {
-		metric := Metric{
+		metric := FileMetric{
 			ID:    id,
 			MType: "counter",
 			Delta: &delta,

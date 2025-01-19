@@ -1,0 +1,9 @@
+FROM golang:1.22 as builder
+WORKDIR /app
+COPY . .
+RUN cd cmd/server && go build -o /server
+
+FROM debian:bookworm
+COPY --from=builder /server /server
+EXPOSE 8080
+CMD ["/server"]

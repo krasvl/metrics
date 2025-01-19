@@ -10,6 +10,7 @@ import (
 	"metrics/internal/storage"
 
 	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 type testCase struct {
@@ -105,7 +106,8 @@ func TestSetGaugeMetricHandler(t *testing.T) {
 	}
 
 	memStorage := storage.NewMemStorage()
-	handler := NewMetricsHandler(memStorage)
+	logger, _ := zap.NewProduction()
+	handler := NewMetricsHandler(memStorage, logger)
 
 	runTests(t, handler.SetGaugeMetricHandler, gaugeTests)
 }
@@ -155,7 +157,8 @@ func TestSetCounterMetricHandler(t *testing.T) {
 	}
 
 	memStorage := storage.NewMemStorage()
-	handler := NewMetricsHandler(memStorage)
+	logger, _ := zap.NewProduction()
+	handler := NewMetricsHandler(memStorage, logger)
 
 	runTests(t, handler.SetCounterMetricHandler, counterTests)
 }
@@ -179,9 +182,10 @@ func TestGetGaugeMetricHandler(t *testing.T) {
 	}
 
 	memStorage := storage.NewMemStorage()
+	logger, _ := zap.NewProduction()
 	memStorage.SetGauge("test", storage.Gauge(1))
 
-	handler := NewMetricsHandler(memStorage)
+	handler := NewMetricsHandler(memStorage, logger)
 
 	runTests(t, handler.GetGaugeMetricHandler, tests)
 }
@@ -206,9 +210,10 @@ func TestGetCounterMetricHandler(t *testing.T) {
 	}
 
 	memStorage := storage.NewMemStorage()
+	logger, _ := zap.NewProduction()
 	memStorage.SetCounter("test", storage.Counter(1))
 
-	handler := NewMetricsHandler(memStorage)
+	handler := NewMetricsHandler(memStorage, logger)
 
 	runTests(t, handler.GetCounterMetricHandler, tests)
 }
@@ -240,12 +245,13 @@ func TestGetAllMetricsHandler(t *testing.T) {
 	}
 
 	memStorage := storage.NewMemStorage()
+	logger, _ := zap.NewProduction()
 	memStorage.SetGauge("testGauge1", storage.Gauge(1.1))
 	memStorage.SetGauge("testGauge2", storage.Gauge(1.2))
 	memStorage.SetCounter("testCounter", storage.Counter(1))
 	memStorage.SetCounter("testCounter", storage.Counter(1))
 
-	handler := NewMetricsHandler(memStorage)
+	handler := NewMetricsHandler(memStorage, logger)
 
 	runTests(t, handler.GetMetricsReportHandler, tests)
 }

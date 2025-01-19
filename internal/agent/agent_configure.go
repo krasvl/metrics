@@ -2,15 +2,18 @@ package agent
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"metrics/internal/storage"
+
+	"go.uber.org/zap"
 )
 
-func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) *Agent {
+func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) (*Agent, error) {
 	addr := flag.String("a", addrDefault, "address")
 	pushInterval := flag.Int("r", pushDefault, "push interval")
 	pollInterval := flag.Int("p", pollDefault, "poll interval")
@@ -41,6 +44,19 @@ func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) *A
 		*addr = "http://" + *addr
 	}
 
+	logger, err := zap.NewProduction()
+	if err != nil {
+		return nil, fmt.Errorf("cant create logger: %w", err)
+	}
+
 	s := storage.NewMemStorage()
-	return NewAgent(*addr, s, time.Duration(*pollInterval)*time.Second, time.Duration(*pushInterval)*time.Second)
+	agent := NewAgent(*addr, s, time.Duration(*pollInterval)*time.Second, time.Duration(*pushInterval)*time.Second, logger)
+
+	logger.Info("agent started:",
+		zap.String("addr", *addr),
+		zap.Int("pushInterval", *pushInterval),
+		zap.Int("pollInterval", *pollInterval),
+	)
+
+	return agent, nil
 }
