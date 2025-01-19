@@ -3,8 +3,10 @@ package storage
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
+	"syscall"
 	"time"
 
 	"go.uber.org/zap"
@@ -36,7 +38,10 @@ func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Log
 		return storage, nil
 	}
 
-	f, err := os.OpenFile(file, os.O_RDONLY|os.O_CREATE, os.ModeAppend)
+	f, err := storage.withRetry(func() (*os.File, error) {
+		return os.OpenFile(file, os.O_RDONLY|os.O_CREATE, os.ModeAppend)
+	})
+
 	if err != nil {
 		return nil, fmt.Errorf("cant open file: %w", err)
 	}
@@ -83,7 +88,9 @@ func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Log
 }
 
 func (fs *FileStorage) saveToFile(ctx context.Context) error {
-	f, err := os.Create(fs.file)
+	f, err := fs.withRetry(func() (*os.File, error) {
+		return os.Create(fs.file)
+	})
 	if err != nil {
 		return fmt.Errorf("cant create file: %w", err)
 	}
@@ -208,4 +215,18 @@ func (fs *FileStorage) ClearCounters(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (fs *FileStorage) withRetry(open func() (*os.File, error)) (*os.File, error) {
+	var f *os.File
+	var err error
+	for _, delay := range []int{0, 1, 3, 5} {
+		time.Sleep(time.Duration(delay) * time.Second)
+		f, err = open()
+		if !errors.Is(err, syscall.EBUSY) {
+			return f, err
+		}
+		fs.logger.Warn("file busy, retry", zap.Error(err))
+	}
+	return f, err
 }

@@ -155,11 +155,13 @@ func (a *Agent) pushMetricsBatch(metrics []Metric) {
 		return
 	}
 
-	resp, err := a.client.R().
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Content-Encoding", "gzip").
-		SetBody(compressed.Bytes()).
-		Post(a.serverURL + "/updates/")
+	resp, err := a.withRetry(func() (*resty.Response, error) {
+		return a.client.R().
+			SetHeader("Content-Type", "application/json").
+			SetHeader("Content-Encoding", "gzip").
+			SetBody(compressed.Bytes()).
+			Post(a.serverURL + "/updates/")
+	})
 
 	if err != nil {
 		a.logger.Error("cant send metrics", zap.Error(err))
@@ -173,7 +175,10 @@ func (a *Agent) pushMetricsBatch(metrics []Metric) {
 }
 
 func (a *Agent) testPing() {
-	resp, err := a.client.R().Get(a.serverURL + "/ping")
+	resp, err := a.withRetry(func() (*resty.Response, error) {
+		return a.client.R().Get(a.serverURL + "/ping")
+	})
+
 	if err != nil {
 		a.logger.Warn("cant ping db", zap.Error(err))
 		return
@@ -183,6 +188,20 @@ func (a *Agent) testPing() {
 		return
 	}
 	a.logger.Info("ping success", zap.Error(err))
+}
+
+func (a *Agent) withRetry(request func() (*resty.Response, error)) (*resty.Response, error) {
+	var resp *resty.Response
+	var err error
+	for _, delay := range []int{0, 1, 3, 5} {
+		time.Sleep(time.Duration(delay) * time.Second)
+		resp, err = request()
+		if resp.StatusCode() != http.StatusServiceUnavailable {
+			return resp, err
+		}
+		a.logger.Warn("service unavailable, retry", zap.Error(err))
+	}
+	return resp, err
 }
 
 func (a *Agent) Start() error {
