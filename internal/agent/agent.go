@@ -159,7 +159,7 @@ func (a *Agent) pushMetricsBatch(metrics []Metric) {
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetBody(compressed.Bytes()).
-		Post(a.serverURL + "/updates")
+		Post(a.serverURL + "/updates/")
 
 	if err != nil {
 		a.logger.Error("cant send metrics", zap.Error(err))

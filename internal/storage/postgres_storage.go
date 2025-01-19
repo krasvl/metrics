@@ -274,7 +274,7 @@ func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Cou
 	stmt, err := tx.PrepareContext(ctx, `
 		INSERT INTO counters (name, value) 
 		VALUES ($1, $2) 
-		ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value
+		ON CONFLICT (name) DO UPDATE SET value = counters.value + EXCLUDED.value
 	`)
 	if err != nil {
 		s.logger.Error("cant prepare statement", zap.Error(err))
