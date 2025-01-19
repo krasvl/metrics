@@ -248,7 +248,7 @@ func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Reques
 				http.Error(w, fmt.Sprintf("Counter %s must be int32", metric.ID), http.StatusBadRequest)
 				return
 			}
-			counterMetrics[metric.ID] = storage.Counter(*metric.Delta)
+			counterMetrics[metric.ID] += storage.Counter(*metric.Delta)
 		default:
 			http.Error(w, fmt.Sprintf("No metric %s type", metric.ID), http.StatusBadRequest)
 			return

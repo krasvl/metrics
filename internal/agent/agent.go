@@ -169,7 +169,7 @@ func (a *Agent) pushMetricsBatch(metrics []Metric) {
 		a.logger.Error("bad status code", zap.Error(err))
 		return
 	}
-	a.logger.Info("push sucess")
+	a.logger.Info("push success")
 }
 
 func (a *Agent) testPing() {
