@@ -1,20 +1,24 @@
 package storage
 
+import (
+	"context"
+)
+
 type Gauge float64
 type Counter int
 
 type MetricsStorage interface {
-	GetAllGauges() map[string]Gauge
-	GetGauge(name string) (Gauge, bool)
-	SetGauge(name string, value Gauge)
-	ClearGauge(name string)
-	ClearGauges()
+	GetAllGauges(ctx context.Context) (map[string]Gauge, error)
+	GetGauge(ctx context.Context, name string) (Gauge, bool, error)
+	SetGauge(ctx context.Context, name string, value Gauge) error
+	ClearGauge(ctx context.Context, name string) error
+	ClearGauges(ctx context.Context) error
 
-	GetAllCounters() map[string]Counter
-	GetCounter(name string) (Counter, bool)
-	SetCounter(name string, value Counter)
-	ClearCounter(name string)
-	ClearCounters()
+	GetAllCounters(ctx context.Context) (map[string]Counter, error)
+	GetCounter(ctx context.Context, name string) (Counter, bool, error)
+	SetCounter(ctx context.Context, name string, value Counter) error
+	ClearCounter(ctx context.Context, name string) error
+	ClearCounters(ctx context.Context) error
 }
 
 type MemStorage struct {
@@ -29,48 +33,60 @@ func NewMemStorage() *MemStorage {
 	}
 }
 
-func (ms *MemStorage) GetAllGauges() map[string]Gauge {
-	return ms.gauges
+func (ms *MemStorage) GetAllGauges(ctx context.Context) (map[string]Gauge, error) {
+	return ms.gauges, nil
 }
 
-func (ms *MemStorage) GetGauge(name string) (Gauge, bool) {
+func (ms *MemStorage) GetGauge(ctx context.Context, name string) (Gauge, bool, error) {
 	value, ok := ms.gauges[name]
-	return value, ok
+	if !ok {
+		return 0, false, nil
+	}
+	return value, true, nil
 }
 
-func (ms *MemStorage) SetGauge(name string, value Gauge) {
+func (ms *MemStorage) SetGauge(ctx context.Context, name string, value Gauge) error {
 	ms.gauges[name] = value
+	return nil
 }
 
-func (ms *MemStorage) ClearGauge(name string) {
+func (ms *MemStorage) ClearGauge(ctx context.Context, name string) error {
 	delete(ms.gauges, name)
+	return nil
 }
 
-func (ms *MemStorage) ClearGauges() {
+func (ms *MemStorage) ClearGauges(ctx context.Context) error {
 	for k := range ms.gauges {
 		delete(ms.gauges, k)
 	}
+	return nil
 }
 
-func (ms *MemStorage) GetAllCounters() map[string]Counter {
-	return ms.counters
+func (ms *MemStorage) GetAllCounters(ctx context.Context) (map[string]Counter, error) {
+	return ms.counters, nil
 }
 
-func (ms *MemStorage) GetCounter(name string) (Counter, bool) {
+func (ms *MemStorage) GetCounter(ctx context.Context, name string) (Counter, bool, error) {
 	value, ok := ms.counters[name]
-	return value, ok
+	if !ok {
+		return 0, false, nil
+	}
+	return value, true, nil
 }
 
-func (ms *MemStorage) SetCounter(name string, value Counter) {
+func (ms *MemStorage) SetCounter(ctx context.Context, name string, value Counter) error {
 	ms.counters[name] += value
+	return nil
 }
 
-func (ms *MemStorage) ClearCounter(name string) {
+func (ms *MemStorage) ClearCounter(ctx context.Context, name string) error {
 	delete(ms.counters, name)
+	return nil
 }
 
-func (ms *MemStorage) ClearCounters() {
+func (ms *MemStorage) ClearCounters(ctx context.Context) error {
 	for k := range ms.counters {
 		delete(ms.counters, k)
 	}
+	return nil
 }

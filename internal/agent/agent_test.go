@@ -2,6 +2,7 @@ package agent
 
 import (
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -16,12 +17,13 @@ import (
 func TestPushMetrics(t *testing.T) {
 	memStorage := storage.NewMemStorage()
 	logger, _ := zap.NewProduction()
+	ctx := context.Background()
 	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second, logger)
 
-	agent.storage.SetGauge("testGauge1", storage.Gauge(1.1))
-	agent.storage.SetGauge("testGauge2", storage.Gauge(1.2))
-	agent.storage.SetCounter("testCounter1", storage.Counter(1))
-	agent.storage.SetCounter("testCounter2", storage.Counter(2))
+	_ = agent.storage.SetGauge(ctx, "testGauge1", storage.Gauge(1.1))
+	_ = agent.storage.SetGauge(ctx, "testGauge2", storage.Gauge(1.2))
+	_ = agent.storage.SetCounter(ctx, "testCounter1", storage.Counter(1))
+	_ = agent.storage.SetCounter(ctx, "testCounter2", storage.Counter(2))
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -131,18 +133,19 @@ func TestPollMetrics(t *testing.T) {
 
 	logger, _ := zap.NewProduction()
 	memStorage := storage.NewMemStorage()
+	ctx := context.Background()
 	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second, logger)
 
 	agent.pollMetrics()
 
 	for _, name := range expectedGauges {
-		if _, ok := agent.storage.GetGauge(name); !ok {
+		if _, ok, err := agent.storage.GetGauge(ctx, name); !ok || err != nil {
 			t.Errorf("expected gauge metric %s to be collected", name)
 		}
 	}
 
 	for _, name := range expectedConters {
-		if _, ok := agent.storage.GetCounter(name); !ok {
+		if _, ok, err := agent.storage.GetCounter(ctx, name); !ok || err != nil {
 			t.Errorf("expected counter metric %s to be collected", name)
 		}
 	}
@@ -151,6 +154,7 @@ func TestPollMetrics(t *testing.T) {
 func TestPollCounter(t *testing.T) {
 	logger, _ := zap.NewProduction()
 	memStorage := storage.NewMemStorage()
+	ctx := context.Background()
 	agent := NewAgent("http://localhost:8080", memStorage, 2*time.Second, 10*time.Second, logger)
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
@@ -160,20 +164,20 @@ func TestPollCounter(t *testing.T) {
 
 	agent.pollMetrics()
 	agent.pollMetrics()
-	if v, _ := agent.storage.GetCounter("PollCount"); v != 2 {
+	if v, _, _ := agent.storage.GetCounter(ctx, "PollCount"); v != 2 {
 		t.Errorf("expected PollCount 2, got %d", v)
 		return
 	}
 
 	agent.pushMetrics()
 
-	if v, _ := agent.storage.GetCounter("PollCount"); v != 0 {
+	if v, _, _ := agent.storage.GetCounter(ctx, "PollCount"); v != 0 {
 		t.Errorf("expected PollCount 0, got %d", v)
 		return
 	}
 
 	agent.pollMetrics()
-	if v, _ := agent.storage.GetCounter("PollCount"); v != 1 {
+	if v, _, _ := agent.storage.GetCounter(ctx, "PollCount"); v != 1 {
 		t.Errorf("expected PollCount 1, got %d", v)
 		return
 	}

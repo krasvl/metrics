@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -50,15 +51,19 @@ func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Log
 		return nil, fmt.Errorf("cant decode file: %w", err)
 	}
 
+	syncTimeout := time.Minute
+	ctx, cancel := context.WithTimeout(context.Background(), syncTimeout)
+	defer cancel()
+
 	for _, metric := range data {
 		switch metric.MType {
 		case "gauge":
 			if metric.Value != nil {
-				storage.SetGauge(metric.ID, *metric.Value)
+				_ = storage.SetGauge(ctx, metric.ID, *metric.Value)
 			}
 		case "counter":
 			if metric.Delta != nil {
-				storage.SetCounter(metric.ID, *metric.Delta)
+				_ = storage.SetCounter(ctx, metric.ID, *metric.Delta)
 			}
 		}
 	}
@@ -67,8 +72,8 @@ func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Log
 		ticker := time.NewTicker(time.Duration(pushInterval) * time.Second)
 		go func() {
 			for range ticker.C {
-				if err := storage.saveToFile(); err != nil {
-					logger.Error("cant create file", zap.String("file", file), zap.Error(err))
+				if err := storage.saveToFile(context.Background()); err != nil {
+					logger.Error("cant save file", zap.String("file", file), zap.Error(err))
 				}
 			}
 		}()
@@ -77,7 +82,7 @@ func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Log
 	return storage, nil
 }
 
-func (fs *FileStorage) saveToFile() error {
+func (fs *FileStorage) saveToFile(ctx context.Context) error {
 	f, err := os.Create(fs.file)
 	if err != nil {
 		return fmt.Errorf("cant create file: %w", err)
@@ -90,7 +95,8 @@ func (fs *FileStorage) saveToFile() error {
 
 	data := []FileMetric{}
 
-	for id, value := range fs.GetAllGauges() {
+	gauges, _ := fs.GetAllGauges(ctx)
+	for id, value := range gauges {
 		metric := FileMetric{
 			ID:    id,
 			MType: "gauge",
@@ -99,7 +105,8 @@ func (fs *FileStorage) saveToFile() error {
 		data = append(data, metric)
 	}
 
-	for id, delta := range fs.GetAllCounters() {
+	counters, _ := fs.GetAllCounters(ctx)
+	for id, delta := range counters {
 		metric := FileMetric{
 			ID:    id,
 			MType: "counter",
@@ -115,56 +122,68 @@ func (fs *FileStorage) saveToFile() error {
 	return nil
 }
 
-func (fs *FileStorage) SetGauge(name string, value Gauge) {
-	fs.MemStorage.SetGauge(name, value)
+func (fs *FileStorage) SetGauge(ctx context.Context, name string, value Gauge) error {
+	_ = fs.MemStorage.SetGauge(ctx, name, value)
 	if fs.pushInterval == 0 {
-		if err := fs.saveToFile(); err != nil {
-			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
 		}
 	}
+	return nil
 }
 
-func (fs *FileStorage) ClearGauge(name string) {
-	fs.MemStorage.ClearGauge(name)
+func (fs *FileStorage) ClearGauge(ctx context.Context, name string) error {
+	_ = fs.MemStorage.ClearGauge(ctx, name)
 	if fs.pushInterval == 0 {
-		if err := fs.saveToFile(); err != nil {
-			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
 		}
 	}
+	return nil
 }
 
-func (fs *FileStorage) ClearGauges() {
-	fs.MemStorage.ClearGauges()
+func (fs *FileStorage) ClearGauges(ctx context.Context) error {
+	_ = fs.MemStorage.ClearGauges(ctx)
 	if fs.pushInterval == 0 {
-		if err := fs.saveToFile(); err != nil {
-			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
 		}
 	}
+	return nil
 }
 
-func (fs *FileStorage) SetCounter(name string, value Counter) {
-	fs.MemStorage.SetCounter(name, value)
+func (fs *FileStorage) SetCounter(ctx context.Context, name string, value Counter) error {
+	_ = fs.MemStorage.SetCounter(ctx, name, value)
 	if fs.pushInterval == 0 {
-		if err := fs.saveToFile(); err != nil {
-			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
 		}
 	}
+	return nil
 }
 
-func (fs *FileStorage) ClearCounter(name string) {
-	fs.MemStorage.ClearCounter(name)
+func (fs *FileStorage) ClearCounter(ctx context.Context, name string) error {
+	_ = fs.MemStorage.ClearCounter(ctx, name)
 	if fs.pushInterval == 0 {
-		if err := fs.saveToFile(); err != nil {
-			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
 		}
 	}
+	return nil
 }
 
-func (fs *FileStorage) ClearCounters() {
-	fs.MemStorage.ClearCounters()
+func (fs *FileStorage) ClearCounters(ctx context.Context) error {
+	_ = fs.MemStorage.ClearCounters(ctx)
 	if fs.pushInterval == 0 {
-		if err := fs.saveToFile(); err != nil {
-			fs.logger.Error("cant create file", zap.String("file", fs.file), zap.Error(err))
+		if err := fs.saveToFile(ctx); err != nil {
+			fs.logger.Error("cant save file", zap.String("file", fs.file), zap.Error(err))
+			return err
 		}
 	}
+	return nil
 }

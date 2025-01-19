@@ -183,7 +183,8 @@ func TestGetGaugeMetricHandler(t *testing.T) {
 
 	memStorage := storage.NewMemStorage()
 	logger, _ := zap.NewProduction()
-	memStorage.SetGauge("test", storage.Gauge(1))
+	ctx := context.Background()
+	_ = memStorage.SetGauge(ctx, "test", storage.Gauge(1))
 
 	handler := NewMetricsHandler(memStorage, logger)
 
@@ -211,7 +212,8 @@ func TestGetCounterMetricHandler(t *testing.T) {
 
 	memStorage := storage.NewMemStorage()
 	logger, _ := zap.NewProduction()
-	memStorage.SetCounter("test", storage.Counter(1))
+	ctx := context.Background()
+	_ = memStorage.SetCounter(ctx, "test", storage.Counter(1))
 
 	handler := NewMetricsHandler(memStorage, logger)
 
@@ -246,10 +248,11 @@ func TestGetAllMetricsHandler(t *testing.T) {
 
 	memStorage := storage.NewMemStorage()
 	logger, _ := zap.NewProduction()
-	memStorage.SetGauge("testGauge1", storage.Gauge(1.1))
-	memStorage.SetGauge("testGauge2", storage.Gauge(1.2))
-	memStorage.SetCounter("testCounter", storage.Counter(1))
-	memStorage.SetCounter("testCounter", storage.Counter(1))
+	ctx := context.Background()
+	_ = memStorage.SetGauge(ctx, "testGauge1", storage.Gauge(1.1))
+	_ = memStorage.SetGauge(ctx, "testGauge2", storage.Gauge(1.2))
+	_ = memStorage.SetCounter(ctx, "testCounter", storage.Counter(1))
+	_ = memStorage.SetCounter(ctx, "testCounter", storage.Counter(1))
 
 	handler := NewMetricsHandler(memStorage, logger)
 

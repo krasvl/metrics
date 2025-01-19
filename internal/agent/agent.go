@@ -3,6 +3,7 @@ package agent
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"math/rand/v2"
 	"net/http"
@@ -47,43 +48,63 @@ func NewAgent(
 }
 
 func (a *Agent) pollMetrics() {
+	ctx := context.Background()
+
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 
-	a.storage.SetGauge("Alloc", storage.Gauge(m.Alloc))
-	a.storage.SetGauge("BuckHashSys", storage.Gauge(m.BuckHashSys))
-	a.storage.SetGauge("Frees", storage.Gauge(m.Frees))
-	a.storage.SetGauge("GCCPUFraction", storage.Gauge(m.GCCPUFraction))
-	a.storage.SetGauge("GCSys", storage.Gauge(m.GCSys))
-	a.storage.SetGauge("HeapAlloc", storage.Gauge(m.HeapAlloc))
-	a.storage.SetGauge("HeapIdle", storage.Gauge(m.HeapIdle))
-	a.storage.SetGauge("HeapInuse", storage.Gauge(m.HeapInuse))
-	a.storage.SetGauge("HeapObjects", storage.Gauge(m.HeapObjects))
-	a.storage.SetGauge("HeapReleased", storage.Gauge(m.HeapReleased))
-	a.storage.SetGauge("HeapSys", storage.Gauge(m.HeapSys))
-	a.storage.SetGauge("LastGC", storage.Gauge(m.LastGC))
-	a.storage.SetGauge("Lookups", storage.Gauge(m.Lookups))
-	a.storage.SetGauge("MCacheInuse", storage.Gauge(m.MCacheInuse))
-	a.storage.SetGauge("MCacheSys", storage.Gauge(m.MCacheSys))
-	a.storage.SetGauge("MSpanInuse", storage.Gauge(m.MSpanInuse))
-	a.storage.SetGauge("MSpanSys", storage.Gauge(m.MSpanSys))
-	a.storage.SetGauge("Mallocs", storage.Gauge(m.Mallocs))
-	a.storage.SetGauge("NextGC", storage.Gauge(m.NextGC))
-	a.storage.SetGauge("NumForcedGC", storage.Gauge(m.NumForcedGC))
-	a.storage.SetGauge("NumGC", storage.Gauge(m.NumGC))
-	a.storage.SetGauge("OtherSys", storage.Gauge(m.OtherSys))
-	a.storage.SetGauge("PauseTotalNs", storage.Gauge(m.PauseTotalNs))
-	a.storage.SetGauge("StackInuse", storage.Gauge(m.StackInuse))
-	a.storage.SetGauge("StackSys", storage.Gauge(m.StackSys))
-	a.storage.SetGauge("Sys", storage.Gauge(m.Sys))
-	a.storage.SetGauge("TotalAlloc", storage.Gauge(m.TotalAlloc))
+	a.pollGauge(ctx, "Alloc", storage.Gauge(m.Alloc))
+	a.pollGauge(ctx, "BuckHashSys", storage.Gauge(m.BuckHashSys))
+	a.pollGauge(ctx, "Frees", storage.Gauge(m.Frees))
+	a.pollGauge(ctx, "GCCPUFraction", storage.Gauge(m.GCCPUFraction))
+	a.pollGauge(ctx, "GCSys", storage.Gauge(m.GCSys))
+	a.pollGauge(ctx, "HeapAlloc", storage.Gauge(m.HeapAlloc))
+	a.pollGauge(ctx, "HeapIdle", storage.Gauge(m.HeapIdle))
+	a.pollGauge(ctx, "HeapInuse", storage.Gauge(m.HeapInuse))
+	a.pollGauge(ctx, "HeapObjects", storage.Gauge(m.HeapObjects))
+	a.pollGauge(ctx, "HeapReleased", storage.Gauge(m.HeapReleased))
+	a.pollGauge(ctx, "HeapSys", storage.Gauge(m.HeapSys))
+	a.pollGauge(ctx, "LastGC", storage.Gauge(m.LastGC))
+	a.pollGauge(ctx, "Lookups", storage.Gauge(m.Lookups))
+	a.pollGauge(ctx, "MCacheInuse", storage.Gauge(m.MCacheInuse))
+	a.pollGauge(ctx, "MCacheSys", storage.Gauge(m.MCacheSys))
+	a.pollGauge(ctx, "MSpanInuse", storage.Gauge(m.MSpanInuse))
+	a.pollGauge(ctx, "MSpanSys", storage.Gauge(m.MSpanSys))
+	a.pollGauge(ctx, "Mallocs", storage.Gauge(m.Mallocs))
+	a.pollGauge(ctx, "NextGC", storage.Gauge(m.NextGC))
+	a.pollGauge(ctx, "NumForcedGC", storage.Gauge(m.NumForcedGC))
+	a.pollGauge(ctx, "NumGC", storage.Gauge(m.NumGC))
+	a.pollGauge(ctx, "OtherSys", storage.Gauge(m.OtherSys))
+	a.pollGauge(ctx, "PauseTotalNs", storage.Gauge(m.PauseTotalNs))
+	a.pollGauge(ctx, "StackInuse", storage.Gauge(m.StackInuse))
+	a.pollGauge(ctx, "StackSys", storage.Gauge(m.StackSys))
+	a.pollGauge(ctx, "Sys", storage.Gauge(m.Sys))
+	a.pollGauge(ctx, "TotalAlloc", storage.Gauge(m.TotalAlloc))
 
-	a.storage.SetCounter("PollCount", storage.Counter(1))
-	a.storage.SetGauge("RandomValue", storage.Gauge(rand.Float64()))
+	a.pollCounter(ctx, "PollCount", storage.Counter(1))
+	a.pollGauge(ctx, "RandomValue", storage.Gauge(rand.Float64()))
+}
+
+func (a *Agent) pollGauge(ctx context.Context, name string, value storage.Gauge) {
+	if err := a.storage.SetGauge(ctx, name, value); err != nil {
+		a.logger.Error("can't set gauge", zap.String("gauge", name), zap.Error(err))
+	}
+}
+
+func (a *Agent) pollCounter(ctx context.Context, name string, value storage.Counter) {
+	if err := a.storage.SetCounter(ctx, name, value); err != nil {
+		a.logger.Error("can't set gauge", zap.String("gauge", name), zap.Error(err))
+	}
 }
 
 func (a *Agent) pushMetrics() {
-	for name, value := range a.storage.GetAllGauges() {
+	ctx := context.Background()
+
+	gauges, err := a.storage.GetAllGauges(ctx)
+	if err != nil {
+		a.logger.Error("cant get gauges", zap.Error(err))
+	}
+	for name, value := range gauges {
 		val := float64(value)
 		metric := Metrics{
 			ID:    name,
@@ -91,10 +112,16 @@ func (a *Agent) pushMetrics() {
 			Value: &val,
 		}
 		a.pushMetric(metric)
-		a.storage.ClearGauge(name)
+		if err := a.storage.ClearGauge(ctx, name); err != nil {
+			a.logger.Error("cant clear gauges", zap.Error(err))
+		}
 	}
 
-	for name, value := range a.storage.GetAllCounters() {
+	counters, err := a.storage.GetAllCounters(ctx)
+	if err != nil {
+		a.logger.Error("cant get counters", zap.Error(err))
+	}
+	for name, value := range counters {
 		delta := int64(value)
 		metric := Metrics{
 			ID:    name,
@@ -102,7 +129,9 @@ func (a *Agent) pushMetrics() {
 			Delta: &delta,
 		}
 		a.pushMetric(metric)
-		a.storage.ClearCounter(name)
+		if err := a.storage.ClearCounter(ctx, name); err != nil {
+			a.logger.Error("cant clear counters", zap.Error(err))
+		}
 	}
 }
 
@@ -137,11 +166,11 @@ func (a *Agent) pushMetric(metric Metrics) {
 func (a *Agent) testPing() {
 	resp, err := a.client.R().Get(a.serverURL + "/ping")
 	if err != nil {
-		a.logger.Error("cant ping db", zap.Error(err))
+		a.logger.Warn("cant ping db", zap.Error(err))
 		return
 	}
 	if resp.StatusCode() != http.StatusOK {
-		a.logger.Error("ping db fail", zap.Error(err))
+		a.logger.Warn("ping db fail", zap.Error(err))
 		return
 	}
 	a.logger.Info("ping success", zap.Error(err))

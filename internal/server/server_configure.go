@@ -22,7 +22,7 @@ func GetConfiguredServer(
 	interval := flag.Int("i", intervalDefault, "interval")
 	file := flag.String("f", fileDefault, "file")
 	restore := flag.Bool("r", restoreDefault, "restore")
-	database := flag.String("d", databaseDefault, "database_dsn")
+	database := flag.String("d", databaseDefault, "database-dsn")
 
 	flag.Parse()
 
@@ -60,6 +60,8 @@ func GetConfiguredServer(
 		serverStorage, err = storage.NewPosgresStorage(*database, logger)
 		if err != nil {
 			logger.Warn("cant create postgres storage", zap.Error(err))
+		} else {
+			logger.Info("use postgres storage", zap.Error(err))
 		}
 	}
 
@@ -67,11 +69,14 @@ func GetConfiguredServer(
 		serverStorage, err = storage.NewFileStorage(*file, *interval, *restore, logger)
 		if err != nil {
 			logger.Warn("cant create file storage", zap.Error(err))
+		} else {
+			logger.Info("use file storage", zap.Error(err))
 		}
 	}
 
 	if serverStorage == nil {
 		serverStorage = storage.NewMemStorage()
+		logger.Info("use mem storage", zap.Error(err))
 	}
 
 	server := NewServer(*addr, serverStorage, logger)
