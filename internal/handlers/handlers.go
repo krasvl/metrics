@@ -46,6 +46,7 @@ func (h *MetricsHandler) SetGaugeMetricHandler(w http.ResponseWriter, r *http.Re
 
 	if err := h.storage.SetGauge(ctx, metricName, storage.Gauge(value)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error("cant set gauge", zap.Error(err))
 		return
 	}
 
@@ -69,6 +70,7 @@ func (h *MetricsHandler) SetCounterMetricHandler(w http.ResponseWriter, r *http.
 
 	if err := h.storage.SetCounter(ctx, metricName, storage.Counter(value)); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error("cant set couter", zap.Error(err))
 		return
 	}
 
@@ -85,6 +87,7 @@ func (h *MetricsHandler) GetGaugeMetricHandler(w http.ResponseWriter, r *http.Re
 	value, ok, err := h.storage.GetGauge(ctx, metricName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error("cant get gauge", zap.Error(err))
 		return
 	}
 
@@ -95,6 +98,7 @@ func (h *MetricsHandler) GetGaugeMetricHandler(w http.ResponseWriter, r *http.Re
 
 	if _, err := w.Write([]byte(strconv.FormatFloat(float64(value), 'f', -1, 64))); err != nil {
 		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		h.logger.Error("Failed to write response", zap.Error(err))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -110,6 +114,7 @@ func (h *MetricsHandler) GetCounterMetricHandler(w http.ResponseWriter, r *http.
 	value, ok, err := h.storage.GetCounter(ctx, metricName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error("cant get counter", zap.Error(err))
 		return
 	}
 
@@ -120,6 +125,7 @@ func (h *MetricsHandler) GetCounterMetricHandler(w http.ResponseWriter, r *http.
 
 	if _, err := w.Write([]byte(strconv.FormatInt(int64(value), 10))); err != nil {
 		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		h.logger.Error("Failed to write response", zap.Error(err))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -143,6 +149,7 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 		value, ok, err := h.storage.GetGauge(ctx, metric.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error("cant get gauge", zap.Error(err))
 			return
 		}
 		if !ok {
@@ -155,6 +162,7 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 		value, ok, err := h.storage.GetCounter(ctx, metric.ID)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error("cant get counter", zap.Error(err))
 			return
 		}
 		if !ok {
@@ -170,7 +178,8 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metric); err != nil {
-		http.Error(w, "Bad json", http.StatusInternalServerError)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		h.logger.Error("Failed to write response", zap.Error(err))
 		return
 	}
 }
@@ -196,6 +205,7 @@ func (h *MetricsHandler) SetMetricHandler(w http.ResponseWriter, r *http.Request
 		}
 		if err := h.storage.SetGauge(ctx, metric.ID, storage.Gauge(*metric.Value)); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error("cant set gauge", zap.Error(err))
 			return
 		}
 	case "counter":
@@ -205,6 +215,7 @@ func (h *MetricsHandler) SetMetricHandler(w http.ResponseWriter, r *http.Request
 		}
 		if err := h.storage.SetCounter(ctx, metric.ID, storage.Counter(*metric.Delta)); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error("cant set counter", zap.Error(err))
 			return
 		}
 	default:
@@ -214,7 +225,8 @@ func (h *MetricsHandler) SetMetricHandler(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metric); err != nil {
-		http.Error(w, "Bad json", http.StatusInternalServerError)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		h.logger.Error("Failed to write response", zap.Error(err))
 		return
 	}
 }
@@ -258,6 +270,7 @@ func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Reques
 	if len(gaugeMetrics) > 0 {
 		if err := h.storage.SetGauges(ctx, gaugeMetrics); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error("cant set gauges", zap.Error(err))
 			return
 		}
 	}
@@ -265,13 +278,15 @@ func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Reques
 	if len(counterMetrics) > 0 {
 		if err := h.storage.SetCounters(ctx, counterMetrics); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			h.logger.Error("cant set counters", zap.Error(err))
 			return
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(metrics); err != nil {
-		http.Error(w, "Bad json", http.StatusInternalServerError)
+		http.Error(w, "Failed to write response", http.StatusInternalServerError)
+		h.logger.Error("Failed to write response", zap.Error(err))
 		return
 	}
 }
@@ -281,12 +296,14 @@ func (h *MetricsHandler) GetMetricsReportHandler(w http.ResponseWriter, r *http.
 	gauges, err := h.storage.GetGauges(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error("cant get gauges", zap.Error(err))
 		return
 	}
 
 	counters, err := h.storage.GetCounters(ctx)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		h.logger.Error("cant get counters", zap.Error(err))
 		return
 	}
 
@@ -322,6 +339,7 @@ func (h *MetricsHandler) GetMetricsReportHandler(w http.ResponseWriter, r *http.
 	w.Header().Set("Content-Type", "text/html")
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Cant render report", http.StatusInternalServerError)
+		h.logger.Error("Cant render report", zap.Error(err))
 	}
 }
 
@@ -331,6 +349,7 @@ func (h *MetricsHandler) PingHandler(w http.ResponseWriter, r *http.Request) {
 	case *storage.PostgresStorage:
 		if err := dbstorage.Ping(ctx); err != nil {
 			http.Error(w, "cant ping db", http.StatusInternalServerError)
+			h.logger.Error("cant ping db", zap.Error(err))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
