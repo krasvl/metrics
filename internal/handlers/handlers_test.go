@@ -16,6 +16,7 @@ type testCase struct {
 	method         string
 	url            string
 	routeParams    map[string]string
+	body           interface{}
 	expectedStatus int
 	expectedBody   string
 }
@@ -63,16 +64,44 @@ func runTests(t *testing.T, handlerFunc http.HandlerFunc, tests []testCase) {
 
 func TestSetGaugeMetricHandler(t *testing.T) {
 	gaugeTests := []testCase{
-		{"POST", "/update/gauge/{metricName}/{metricValue}",
-			map[string]string{"metricName": "gaugeTest", "metricValue": "0"}, http.StatusOK, ""},
-		{"POST", "/update/gauge/{metricName}/{metricValue}",
-			map[string]string{"metricName": "gaugeTest", "metricValue": "-100000"}, http.StatusOK, ""},
-		{"POST", "/update/gauge/{metricName}/{metricValue}",
-			map[string]string{"metricName": "gaugeTest", "metricValue": "1.1432423"}, http.StatusOK, ""},
-		{"POST", "/update/gauge/{metricName}/{metricValue}",
-			map[string]string{"metricName": "gaugeTest", "metricValue": "gaugeTestBad"}, http.StatusBadRequest, ""},
-		{"POST", "/update/gauge/{metricName}/{metricValue}",
-			map[string]string{"metricName": "gaugeTest", "metricValue": ""}, http.StatusBadRequest, ""},
+		{
+			"POST",
+			"/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "0"},
+			nil,
+			http.StatusOK,
+			"",
+		},
+		{
+			"POST",
+			"/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "-100000"},
+			nil,
+			http.StatusOK,
+			""},
+		{
+			"POST", "/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "1.1432423"},
+			nil,
+			http.StatusOK,
+			"",
+		},
+		{
+			"POST",
+			"/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": "gaugeTestBad"},
+			nil,
+			http.StatusBadRequest,
+			"",
+		},
+		{
+			"POST",
+			"/update/gauge/{metricName}/{metricValue}",
+			map[string]string{"metricName": "gaugeTest", "metricValue": ""},
+			nil,
+			http.StatusBadRequest,
+			"",
+		},
 	}
 
 	memStorage := storage.NewMemStorage()
@@ -83,16 +112,46 @@ func TestSetGaugeMetricHandler(t *testing.T) {
 
 func TestSetCounterMetricHandler(t *testing.T) {
 	counterTests := []testCase{
-		{"POST", "/update/counter/{metricName}/{metricValue}",
-			map[string]string{"metricName": "counterTest", "metricValue": "0"}, http.StatusOK, ""},
-		{"POST", "/update/counter/{metricName}/{metricValue}",
-			map[string]string{"metricName": "counterTest", "metricValue": "-123456"}, http.StatusOK, ""},
-		{"POST", "/update/counter/{metricName}/{metricValue}",
-			map[string]string{"metricName": "counterTest", "metricValue": "3.1123"}, http.StatusBadRequest, ""},
-		{"POST", "/update/counter/{metricName}/{metricValue}",
-			map[string]string{"metricName": "counterTest", "metricValue": "counterTestBad"}, http.StatusBadRequest, ""},
-		{"POST", "/update/counter/{metricName}/{metricValue}",
-			map[string]string{"metricName": "counterTest", "metricValue": ""}, http.StatusBadRequest, ""},
+		{
+			"POST",
+			"/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "0"},
+			nil,
+			http.StatusOK,
+			"",
+		},
+		{
+			"POST",
+			"/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "-123456"},
+			nil,
+			http.StatusOK,
+			"",
+		},
+		{
+			"POST",
+			"/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "3.1123"},
+			nil,
+			http.StatusBadRequest,
+			"",
+		},
+		{
+			"POST",
+			"/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": "counterTestBad"},
+			nil,
+			http.StatusBadRequest,
+			"",
+		},
+		{
+			"POST",
+			"/update/counter/{metricName}/{metricValue}",
+			map[string]string{"metricName": "counterTest", "metricValue": ""},
+			nil,
+			http.StatusBadRequest,
+			"",
+		},
 	}
 
 	memStorage := storage.NewMemStorage()
@@ -103,10 +162,20 @@ func TestSetCounterMetricHandler(t *testing.T) {
 
 func TestGetGaugeMetricHandler(t *testing.T) {
 	tests := []testCase{
-		{"GET", "/value/gauge/{metricName}",
-			map[string]string{"metricName": "test"}, http.StatusOK, "1"},
-		{"GET", "/value/gauge/{metricName}",
-			map[string]string{"metricName": "noexist"}, http.StatusNotFound, ""},
+		{
+			"GET", "/value/gauge/{metricName}",
+			map[string]string{"metricName": "test"},
+			nil,
+			http.StatusOK,
+			"1",
+		},
+		{
+			"GET", "/value/gauge/{metricName}",
+			map[string]string{"metricName": "noexist"},
+			nil,
+			http.StatusNotFound,
+			"",
+		},
 	}
 
 	memStorage := storage.NewMemStorage()
@@ -119,10 +188,21 @@ func TestGetGaugeMetricHandler(t *testing.T) {
 
 func TestGetCounterMetricHandler(t *testing.T) {
 	tests := []testCase{
-		{"GET", "/value/counter/{metricName}",
-			map[string]string{"metricName": "test"}, http.StatusOK, "1"},
-		{"GET", "/value/counter/{metricName}",
-			map[string]string{"metricName": "noexist"}, http.StatusNotFound, ""},
+		{
+			"GET",
+			"/value/counter/{metricName}",
+			map[string]string{"metricName": "test"},
+			nil,
+			http.StatusOK,
+			"1",
+		},
+		{
+			"GET", "/value/counter/{metricName}",
+			map[string]string{"metricName": "noexist"},
+			nil,
+			http.StatusNotFound,
+			"",
+		},
 	}
 
 	memStorage := storage.NewMemStorage()
@@ -156,7 +236,7 @@ func TestGetAllMetricsHandler(t *testing.T) {
 	`
 
 	tests := []testCase{
-		{"GET", "/", map[string]string{}, http.StatusOK, body},
+		{"GET", "/", map[string]string{}, nil, http.StatusOK, body},
 	}
 
 	memStorage := storage.NewMemStorage()
@@ -167,5 +247,5 @@ func TestGetAllMetricsHandler(t *testing.T) {
 
 	handler := NewMetricsHandler(memStorage)
 
-	runTests(t, handler.GetAllMetricsHandler, tests)
+	runTests(t, handler.GetMetricsReportHandler, tests)
 }

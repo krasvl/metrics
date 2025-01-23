@@ -489,7 +489,8 @@ linters:
     - exhaustive
     - forcetypeassert
     - gocheckcompilerdirectives
-    - goconst
+    # Среди прочего ругается даже на строки типа "Content-Type"
+    # - goconst
     - gocritic
     - godot
     - gofmt

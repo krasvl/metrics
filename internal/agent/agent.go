@@ -1,6 +1,9 @@
 package agent
 
 import (
+	"bytes"
+	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -19,6 +22,13 @@ type Agent struct {
 	serverURL    string
 	pollInterval time.Duration
 	pushInterval time.Duration
+}
+
+type Metrics struct {
+	Delta *int64   `json:"delta,omitempty"`
+	Value *float64 `json:"value,omitempty"`
+	ID    string   `json:"id"`
+	MType string   `json:"type"`
 }
 
 func NewAgent(
@@ -72,34 +82,54 @@ func (a *Agent) pollMetrics() {
 
 func (a *Agent) pushMetrics() error {
 	for name, value := range a.storage.GetAllGauges() {
-		url := fmt.Sprintf("%s/update/gauge/%s/%v", a.serverURL, name, value)
-		if err := a.pushMetric(url); err != nil {
+		val := float64(value)
+		metric := Metrics{
+			ID:    name,
+			MType: "gauge",
+			Value: &val,
+		}
+		if err := a.pushMetric(metric); err != nil {
 			return err
 		}
 		a.storage.ClearGauge(name)
 	}
 
 	for name, value := range a.storage.GetAllCounters() {
-		url := fmt.Sprintf("%s/update/counter/%s/%v", a.serverURL, name, value)
-		if err := a.pushMetric(url); err != nil {
+		delta := int64(value)
+		metric := Metrics{
+			ID:    name,
+			MType: "counter",
+			Delta: &delta,
+		}
+		if err := a.pushMetric(metric); err != nil {
 			return err
 		}
 		a.storage.ClearCounter(name)
 	}
-
 	return nil
 }
 
-func (a *Agent) pushMetric(url string) error {
+func (a *Agent) pushMetric(metric Metrics) error {
+	var compressed bytes.Buffer
+	writer := gzip.NewWriter(&compressed)
+	if err := json.NewEncoder(writer).Encode(metric); err != nil {
+		return fmt.Errorf("cant gzip metric: %w", err)
+	}
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("cant close gzip writer: %w", err)
+	}
+
 	resp, err := a.client.R().
-		SetHeader("Content-Type", "text/plain").
-		Post(url)
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetBody(compressed.Bytes()).
+		Post(a.serverURL + "/update/")
 
 	if err != nil {
 		return fmt.Errorf("cant send metric: %w", err)
 	}
 	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("bad status code: %d url %s", resp.StatusCode(), url)
+		return fmt.Errorf("bad status code: %d", resp.StatusCode())
 	}
 	return nil
 }
