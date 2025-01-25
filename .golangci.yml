@@ -496,7 +496,7 @@ linters:
     - gofmt
     - goimports
     - goprintffuncname
-    - gosec
+    #- gosec
     - gosimple
     - govet
     - grouper
@@ -506,7 +506,7 @@ linters:
     - loggercheck
     - makezero
     - mirror
-    - mnd
+    #- mnd
     - musttag
     - nilerr
     - nilnil

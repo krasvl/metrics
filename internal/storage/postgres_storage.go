@@ -267,7 +267,6 @@ func (s *PostgresStorage) SetCounter(ctx context.Context, name string, value Cou
 }
 
 func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Counter) error {
-
 	valueStrings := make([]string, 0, len(values))
 	valueArgs := make([]interface{}, 0, len(values)*2)
 
@@ -277,6 +276,7 @@ func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Cou
 		valueArgs = append(valueArgs, name, value)
 		i += 2
 	}
+
 	stmt := fmt.Sprintf(`
 		INSERT INTO counters (name, value) 
 		VALUES %s
