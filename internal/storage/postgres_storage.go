@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx"
@@ -48,15 +49,15 @@ func NewPosgresStorage(connectionString string, logger *zap.Logger) (*PostgresSt
 func (s *PostgresStorage) initTables(ctx context.Context) error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS gauges (
-			id SERIAL PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE,
-			value DOUBLE PRECISION
+			id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+			name VARCHAR(50) NOT NULL UNIQUE,
+			value DOUBLE PRECISION NOT NULL
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_gauges_name ON gauges (name);`,
 		`CREATE TABLE IF NOT EXISTS counters (
-			id SERIAL PRIMARY KEY,
-			name TEXT NOT NULL UNIQUE,
-			value BIGINT
+			id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+			name VARCHAR(50) NOT NULL UNIQUE,
+			value BIGINT NOT NULL
 		);`,
 		`CREATE INDEX IF NOT EXISTS idx_counters_name ON counters (name);`,
 	}
@@ -64,7 +65,6 @@ func (s *PostgresStorage) initTables(ctx context.Context) error {
 	for _, query := range queries {
 		_, err := s.db.ExecContext(ctx, query)
 		if err != nil {
-			s.logger.Error("cant init tables", zap.Error(err))
 			return fmt.Errorf("cant init tables: %w", err)
 		}
 	}
@@ -77,7 +77,6 @@ func (s *PostgresStorage) Ping(ctx context.Context) error {
 		return s.db.PingContext(ctx)
 	})
 	if err != nil {
-		s.logger.Error("ping db fail", zap.Error(err))
 		return fmt.Errorf("ping db fail: %w", err)
 	}
 	return nil
@@ -85,7 +84,6 @@ func (s *PostgresStorage) Ping(ctx context.Context) error {
 
 func (s *PostgresStorage) Close() error {
 	if err := s.db.Close(); err != nil {
-		s.logger.Error("cant close db connection", zap.Error(err))
 		return fmt.Errorf("cant close db connection: %w", err)
 	}
 	return nil
@@ -97,7 +95,6 @@ func (s *PostgresStorage) GetGauges(ctx context.Context) (map[string]Gauge, erro
 	err = s.withRetry(func() error {
 		rows, err = s.db.QueryContext(ctx, "SELECT name, value FROM gauges")
 		if err := rows.Err(); err != nil {
-			s.logger.Error("rows iteration error", zap.Error(err))
 			return fmt.Errorf("rows iteration error: %w", err)
 		}
 		defer func() {
@@ -108,7 +105,6 @@ func (s *PostgresStorage) GetGauges(ctx context.Context) (map[string]Gauge, erro
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant query gauges", zap.Error(err))
 		return nil, fmt.Errorf("cant query gauges: %w", err)
 	}
 
@@ -135,7 +131,6 @@ func (s *PostgresStorage) GetGauge(ctx context.Context, name string) (Gauge, boo
 		return 0, false, nil
 	}
 	if err != nil {
-		s.logger.Error("cant query gauge", zap.String("name", name), zap.Error(err))
 		return 0, false, fmt.Errorf("cant query gauge: %w", err)
 	}
 	return value, true, nil
@@ -152,55 +147,35 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, value Gauge
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant set gauge", zap.String("name", name), zap.Float64("value", float64(value)), zap.Error(err))
 		return fmt.Errorf("cant set gauge: %w", err)
 	}
 	return nil
 }
 
 func (s *PostgresStorage) SetGauges(ctx context.Context, values map[string]Gauge) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		s.logger.Error("cant start transaction", zap.Error(err))
-		return fmt.Errorf("cant start transaction: %w", err)
-	}
+	valueStrings := make([]string, 0, len(values))
+	valueArgs := make([]interface{}, 0, len(values)*2)
 
-	stmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO gauges (name, value) 
-		VALUES ($1, $2) 
-		ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value
-	`)
-	if err != nil {
-		s.logger.Error("cant prepare statement", zap.Error(err))
-		_ = tx.Rollback()
-		return fmt.Errorf("cant prepare statement: %w", err)
-	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			s.logger.Error("cant close stmt", zap.Error(err))
-		}
-	}()
-
+	i := 1
 	for name, value := range values {
-		err := s.withRetry(func() error {
-			_, err := stmt.ExecContext(ctx, name, value)
-			return err
-		})
-		if err != nil {
-			s.logger.Error(
-				"cant execute statement",
-				zap.String("name", name),
-				zap.Float64("value", float64(value)),
-				zap.Error(err),
-			)
-			_ = tx.Rollback()
-			return fmt.Errorf("cant execute statement: %w", err)
-		}
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i, i+1))
+		valueArgs = append(valueArgs, name, value)
+		i += 2
 	}
 
-	if err := tx.Commit(); err != nil {
-		s.logger.Error("cant commit transaction", zap.Error(err))
-		return fmt.Errorf("cant commit transaction: %w", err)
+	stmt := fmt.Sprintf(`
+		INSERT INTO gauges (name, value) 
+		VALUES %s
+		ON CONFLICT (name) DO UPDATE SET value = EXCLUDED.value
+	`, strings.Join(valueStrings, ","))
+
+	err := s.withRetry(func() error {
+		_, err := s.db.ExecContext(ctx, stmt, valueArgs...)
+		return err
+	})
+
+	if err != nil {
+		return fmt.Errorf("cant set gauges: %w", err)
 	}
 
 	return nil
@@ -212,7 +187,6 @@ func (s *PostgresStorage) ClearGauge(ctx context.Context, name string) error {
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant clear gauge", zap.String("name", name), zap.Error(err))
 		return fmt.Errorf("cant clear gauge: %w", err)
 	}
 	return nil
@@ -224,7 +198,6 @@ func (s *PostgresStorage) ClearGauges(ctx context.Context) error {
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant clear all gauges", zap.Error(err))
 		return fmt.Errorf("cant clear all gauges: %w", err)
 	}
 	return nil
@@ -236,7 +209,6 @@ func (s *PostgresStorage) GetCounters(ctx context.Context) (map[string]Counter, 
 	err = s.withRetry(func() error {
 		rows, err = s.db.QueryContext(ctx, "SELECT name, value FROM counters")
 		if err := rows.Err(); err != nil {
-			s.logger.Error("rows iteration error", zap.Error(err))
 			return fmt.Errorf("rows iteration error: %w", err)
 		}
 		defer func() {
@@ -247,7 +219,6 @@ func (s *PostgresStorage) GetCounters(ctx context.Context) (map[string]Counter, 
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant query counters", zap.Error(err))
 		return nil, fmt.Errorf("cant query counters: %w", err)
 	}
 
@@ -274,7 +245,6 @@ func (s *PostgresStorage) GetCounter(ctx context.Context, name string) (Counter,
 		return 0, false, nil
 	}
 	if err != nil {
-		s.logger.Error("cant get counter", zap.String("name", name), zap.Error(err))
 		return 0, false, fmt.Errorf("cant get counter: %w", err)
 	}
 	return value, true, nil
@@ -291,55 +261,35 @@ func (s *PostgresStorage) SetCounter(ctx context.Context, name string, value Cou
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant set counter", zap.String("name", name), zap.Int("value", int(value)), zap.Error(err))
 		return fmt.Errorf("cant set counter: %w", err)
 	}
 	return nil
 }
 
 func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Counter) error {
-	tx, err := s.db.BeginTx(ctx, nil)
-	if err != nil {
-		s.logger.Error("cant start transaction", zap.Error(err))
-		return fmt.Errorf("cant start transaction: %w", err)
-	}
 
-	stmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO counters (name, value) 
-		VALUES ($1, $2) 
-		ON CONFLICT (name) DO UPDATE SET value = counters.value + EXCLUDED.value
-	`)
-	if err != nil {
-		s.logger.Error("cant prepare statement", zap.Error(err))
-		_ = tx.Rollback()
-		return fmt.Errorf("cant prepare statement: %w", err)
-	}
-	defer func() {
-		if err := stmt.Close(); err != nil {
-			s.logger.Error("cant close stmt", zap.Error(err))
-		}
-	}()
+	valueStrings := make([]string, 0, len(values))
+	valueArgs := make([]interface{}, 0, len(values)*2)
 
+	i := 1
 	for name, value := range values {
-		err := s.withRetry(func() error {
-			_, err := stmt.ExecContext(ctx, name, value)
-			return err
-		})
-		if err != nil {
-			s.logger.Error(
-				"cant execute statement",
-				zap.String("name", name),
-				zap.Int("value", int(value)),
-				zap.Error(err),
-			)
-			_ = tx.Rollback()
-			return fmt.Errorf("cant execute statement: %w", err)
-		}
+		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i, i+1))
+		valueArgs = append(valueArgs, name, value)
+		i += 2
 	}
+	stmt := fmt.Sprintf(`
+		INSERT INTO counters (name, value) 
+		VALUES %s
+		ON CONFLICT (name) DO UPDATE SET value = counters.value + EXCLUDED.value
+	`, strings.Join(valueStrings, ","))
 
-	if err := tx.Commit(); err != nil {
-		s.logger.Error("cant commit transaction", zap.Error(err))
-		return fmt.Errorf("cant commit transaction: %w", err)
+	err := s.withRetry(func() error {
+		_, err := s.db.ExecContext(ctx, stmt, valueArgs...)
+		return err
+	})
+
+	if err != nil {
+		return fmt.Errorf("cant set gauges: %w", err)
 	}
 
 	return nil
@@ -351,7 +301,6 @@ func (s *PostgresStorage) ClearCounter(ctx context.Context, name string) error {
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant clear counter", zap.String("name", name), zap.Error(err))
 		return fmt.Errorf("cant clear counter: %w", err)
 	}
 	return nil
@@ -363,7 +312,6 @@ func (s *PostgresStorage) ClearCounters(ctx context.Context) error {
 		return err
 	})
 	if err != nil {
-		s.logger.Error("cant clear all counters", zap.Error(err))
 		return fmt.Errorf("cant clear all counters: %w", err)
 	}
 	return nil

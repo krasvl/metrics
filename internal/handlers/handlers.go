@@ -354,16 +354,8 @@ func (h *MetricsHandler) PingHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusOK)
 
-	case *storage.MemStorage:
-		http.Error(w, "server use memory storage", http.StatusInternalServerError)
-		return
-
-	case *storage.FileStorage:
-		http.Error(w, "server use file storage", http.StatusInternalServerError)
-		return
-
 	default:
-		http.Error(w, "server use unknown storage", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusOK)
 		return
 	}
 }
