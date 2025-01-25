@@ -1,0 +1,8 @@
+FROM golang:1.22 as builder
+WORKDIR /app
+COPY . .
+RUN cd cmd/agent && go build -o /agent
+
+FROM debian:bookworm
+COPY --from=builder /agent /agent
+CMD ["/agent"]

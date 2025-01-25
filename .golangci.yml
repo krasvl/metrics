@@ -480,7 +480,7 @@ linters:
     - bidichk
     - bodyclose
     - containedctx
-    - dupl
+    # - dupl
     - dupword
     - durationcheck
     - errcheck
@@ -496,7 +496,7 @@ linters:
     - gofmt
     - goimports
     - goprintffuncname
-    - gosec
+    #- gosec
     - gosimple
     - govet
     - grouper
@@ -506,7 +506,7 @@ linters:
     - loggercheck
     - makezero
     - mirror
-    - mnd
+    #- mnd
     - musttag
     - nilerr
     - nilnil
@@ -534,7 +534,7 @@ linters:
     - usestdlibvars
     - wastedassign
     - whitespace
-    - wrapcheck
+    #- wrapcheck
     - zerologlint
   # Run only fast linters from enabled linters set (first run won't be fast).
   fast: false

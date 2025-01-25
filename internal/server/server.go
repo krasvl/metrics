@@ -24,7 +24,7 @@ type Server struct {
 }
 
 func NewServer(addr string, metricsStorage storage.MetricsStorage, logger *zap.Logger) *Server {
-	handler := handlers.NewMetricsHandler(metricsStorage)
+	handler := handlers.NewMetricsHandler(metricsStorage, logger)
 	return &Server{addr: addr, storage: metricsStorage, handler: handler, logger: logger}
 }
 
@@ -137,6 +137,8 @@ func (s *Server) Start() error {
 
 	r.Get("/", s.handler.GetMetricsReportHandler)
 
+	r.Get("/ping", s.handler.PingHandler)
+
 	r.Route("/value", func(r chi.Router) {
 		r.Post("/", s.handler.GetMetricsHandler)
 
@@ -151,8 +153,10 @@ func (s *Server) Start() error {
 		})
 	})
 
+	r.Post("/updates/", s.handler.SetMetricsHandler)
+
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", s.handler.SetMetricsHandler)
+		r.Post("/", s.handler.SetMetricHandler)
 
 		r.Post("/gauge/", s.handler.SetGaugeMetricHandler)
 		r.Post("/gauge/{metricName}/", s.handler.SetGaugeMetricHandler)
