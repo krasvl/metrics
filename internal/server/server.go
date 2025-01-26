@@ -130,6 +130,15 @@ func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 	})
 }
 
+type hashResponseWriter struct {
+	http.ResponseWriter
+	writer io.Writer
+}
+
+func (rw *hashResponseWriter) Write(p []byte) (int, error) {
+	return rw.writer.Write(p)
+}
+
 func WithHashValidation(key string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
@@ -153,17 +162,14 @@ func WithHashValidation(key string, next http.Handler) http.Handler {
 
 func WithHashHeader(key string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Response.Body)
-		if err != nil {
-			http.Error(w, "cant read response body", http.StatusInternalServerError)
-			return
-		}
-		r.Body = io.NopCloser(io.Reader(bytes.NewBuffer(body)))
+		buf := new(bytes.Buffer)
+		mw := io.MultiWriter(w, buf)
+		rw := &hashResponseWriter{ResponseWriter: w, writer: mw}
 
-		hash := getHash(key, body)
+		next.ServeHTTP(rw, r)
+
+		hash := getHash(key, buf.Bytes())
 		w.Header().Set("HashSHA256", hash)
-
-		next.ServeHTTP(w, r)
 	})
 }
 
