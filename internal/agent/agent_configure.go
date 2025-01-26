@@ -13,10 +13,16 @@ import (
 	"go.uber.org/zap"
 )
 
-func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) (*Agent, error) {
+func GetConfiguredAgent(
+	addrDefault string,
+	pushDefault int,
+	pollDefault int,
+	keyDefault string,
+) (*Agent, error) {
 	addr := flag.String("a", addrDefault, "address")
 	pushInterval := flag.Int("r", pushDefault, "push interval")
 	pollInterval := flag.Int("p", pollDefault, "poll interval")
+	key := flag.String("k", keyDefault, "key")
 
 	flag.Parse()
 
@@ -40,6 +46,10 @@ func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) (*
 		}
 	}
 
+	if value, ok := os.LookupEnv("KEY"); ok && value != "" {
+		key = &value
+	}
+
 	if !strings.HasPrefix(*addr, "http://") && !strings.HasPrefix(*addr, "https://") {
 		*addr = "http://" + *addr
 	}
@@ -50,7 +60,14 @@ func GetConfiguredAgent(addrDefault string, pushDefault int, pollDefault int) (*
 	}
 
 	s := storage.NewMemStorage()
-	agent := NewAgent(*addr, s, time.Duration(*pollInterval)*time.Second, time.Duration(*pushInterval)*time.Second, logger)
+	agent := NewAgent(
+		*addr,
+		s,
+		time.Duration(*pollInterval)*time.Second,
+		time.Duration(*pushInterval)*time.Second,
+		*key,
+		logger,
+	)
 
 	logger.Info("agent started:",
 		zap.String("addr", *addr),

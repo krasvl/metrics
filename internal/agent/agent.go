@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"math/rand/v2"
 	"net/http"
@@ -21,6 +24,7 @@ type Agent struct {
 	client       *resty.Client
 	logger       *zap.Logger
 	serverURL    string
+	key          string
 	pollInterval time.Duration
 	pushInterval time.Duration
 }
@@ -36,11 +40,13 @@ func NewAgent(
 	serverURL string,
 	metricsStorage storage.MetricsStorage,
 	pollInterval, pushInterval time.Duration,
+	key string,
 	logger *zap.Logger) *Agent {
 	return &Agent{
 		serverURL:    serverURL,
 		pollInterval: pollInterval,
 		pushInterval: pushInterval,
+		key:          key,
 		storage:      metricsStorage,
 		client:       resty.New(),
 		logger:       logger,
@@ -155,10 +161,13 @@ func (a *Agent) pushMetricsBatch(metrics []Metric) {
 		return
 	}
 
+	hash := getHash(a.key, compressed.Bytes())
+
 	resp, err := a.withRetry(func() (*resty.Response, error) {
 		return a.client.R().
 			SetHeader("Content-Type", "application/json").
 			SetHeader("Content-Encoding", "gzip").
+			SetHeader("HashSHA256", hash).
 			SetBody(compressed.Bytes()).
 			Post(a.serverURL + "/updates/")
 	})
@@ -202,6 +211,15 @@ func (a *Agent) withRetry(request func() (*resty.Response, error)) (*resty.Respo
 		a.logger.Warn("service unavailable, retry", zap.Error(err))
 	}
 	return resp, err
+}
+
+func getHash(key string, data []byte) string {
+	if key == "" {
+		return ""
+	}
+	h := hmac.New(sha256.New, []byte(key))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 func (a *Agent) Start() error {

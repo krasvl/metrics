@@ -1,7 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -21,11 +25,12 @@ type Server struct {
 	handler *handlers.MetricsHandler
 	logger  *zap.Logger
 	addr    string
+	key     string
 }
 
-func NewServer(addr string, metricsStorage storage.MetricsStorage, logger *zap.Logger) *Server {
+func NewServer(addr string, metricsStorage storage.MetricsStorage, key string, logger *zap.Logger) *Server {
 	handler := handlers.NewMetricsHandler(metricsStorage, logger)
-	return &Server{addr: addr, storage: metricsStorage, handler: handler, logger: logger}
+	return &Server{addr: addr, key: key, storage: metricsStorage, handler: handler, logger: logger}
 }
 
 type gzipResponseWriter struct {
@@ -125,6 +130,52 @@ func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 	})
 }
 
+func WithHashValidation(key string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "cant read request body", http.StatusInternalServerError)
+			return
+		}
+		r.Body = io.NopCloser(io.Reader(bytes.NewBuffer(body)))
+
+		expectedHash := getHash(key, body)
+		receivedHash := r.Header.Get("HashSHA256")
+
+		if receivedHash != expectedHash {
+			http.Error(w, "invalid hash", http.StatusBadRequest)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func WithHashHeader(key string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Response.Body)
+		if err != nil {
+			http.Error(w, "cant read response body", http.StatusInternalServerError)
+			return
+		}
+		r.Body = io.NopCloser(io.Reader(bytes.NewBuffer(body)))
+
+		hash := getHash(key, body)
+		w.Header().Set("HashSHA256", hash)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getHash(key string, data []byte) string {
+	if key == "" {
+		return ""
+	}
+	h := hmac.New(sha256.New, []byte(key))
+	h.Write(data)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func (s *Server) Start() error {
 	r := chi.NewRouter()
 
@@ -132,8 +183,20 @@ func (s *Server) Start() error {
 		return WithLogging(s.logger, next)
 	})
 
+	if s.key != "" {
+		r.Use(func(next http.Handler) http.Handler {
+			return WithHashValidation(s.key, next)
+		})
+	}
+
 	r.Use(WithDecompress)
 	r.Use(WithCompress)
+
+	if s.key != "" {
+		r.Use(func(next http.Handler) http.Handler {
+			return WithHashHeader(s.key, next)
+		})
+	}
 
 	r.Get("/", s.handler.GetMetricsReportHandler)
 
