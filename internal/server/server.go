@@ -46,7 +46,7 @@ func (g *gzipResponseWriter) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-func WithDecompress(next http.Handler) http.Handler {
+func (s *Server) WithDecompress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			gz, err := gzip.NewReader(r.Body)
@@ -65,7 +65,7 @@ func WithDecompress(next http.Handler) http.Handler {
 	})
 }
 
-func WithCompress(next http.Handler) http.Handler {
+func (s *Server) WithCompress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept-Encoding") == "gzip" &&
 			(r.Header.Get("Accept") == "application/json" || r.Header.Get("Accept") == "text/html") {
@@ -110,7 +110,7 @@ func (lrw *logResponseWriter) Write(data []byte) (int, error) {
 	return size, nil
 }
 
-func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
+func (s *Server) WithLogging(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -120,7 +120,7 @@ func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		logger.Info("Request processed",
+		s.logger.Info("Request processed",
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),
 			zap.Duration("duration", duration),
@@ -139,8 +139,13 @@ func (rw *hashResponseWriter) Write(p []byte) (int, error) {
 	return rw.writer.Write(p)
 }
 
-func WithHashValidation(key string, next http.Handler) http.Handler {
+func (s *Server) WithHashValidation(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.key == "" || r.Header.Get("HashSHA256") == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "cant read request body", http.StatusInternalServerError)
@@ -148,7 +153,7 @@ func WithHashValidation(key string, next http.Handler) http.Handler {
 		}
 		r.Body = io.NopCloser(io.Reader(bytes.NewBuffer(body)))
 
-		expectedHash := getHash(key, body)
+		expectedHash := s.getHash(body)
 		receivedHash := r.Header.Get("HashSHA256")
 
 		if receivedHash != expectedHash {
@@ -160,7 +165,7 @@ func WithHashValidation(key string, next http.Handler) http.Handler {
 	})
 }
 
-func WithHashHeader(key string, next http.Handler) http.Handler {
+func (s *Server) WithHashHeader(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		buf := new(bytes.Buffer)
 		mw := io.MultiWriter(w, buf)
@@ -168,16 +173,18 @@ func WithHashHeader(key string, next http.Handler) http.Handler {
 
 		next.ServeHTTP(rw, r)
 
-		hash := getHash(key, buf.Bytes())
-		w.Header().Set("HashSHA256", hash)
+		if s.key != "" && len(buf.Bytes()) > 0 {
+			hash := s.getHash(buf.Bytes())
+			w.Header().Set("HashSHA256", hash)
+		}
 	})
 }
 
-func getHash(key string, data []byte) string {
-	if key == "" {
+func (s *Server) getHash(data []byte) string {
+	if s.key == "" {
 		return ""
 	}
-	h := hmac.New(sha256.New, []byte(key))
+	h := hmac.New(sha256.New, []byte(s.key))
 	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))
 }
@@ -185,24 +192,14 @@ func getHash(key string, data []byte) string {
 func (s *Server) Start() error {
 	r := chi.NewRouter()
 
-	r.Use(func(next http.Handler) http.Handler {
-		return WithLogging(s.logger, next)
-	})
+	r.Use(s.WithLogging)
 
-	if s.key != "" {
-		r.Use(func(next http.Handler) http.Handler {
-			return WithHashValidation(s.key, next)
-		})
-	}
+	r.Use(s.WithHashValidation)
 
-	r.Use(WithDecompress)
-	r.Use(WithCompress)
+	r.Use(s.WithDecompress)
+	r.Use(s.WithCompress)
 
-	if s.key != "" {
-		r.Use(func(next http.Handler) http.Handler {
-			return WithHashHeader(s.key, next)
-		})
-	}
+	r.Use(s.WithHashHeader)
 
 	r.Get("/", s.handler.GetMetricsReportHandler)
 
