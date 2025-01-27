@@ -17,12 +17,14 @@ func GetConfiguredServer(
 	fileDefault string,
 	restoreDefault bool,
 	databaseDefault string,
+	keyDefault string,
 ) (*Server, error) {
 	addr := flag.String("a", addrDefault, "address")
 	interval := flag.Int("i", intervalDefault, "interval")
 	file := flag.String("f", fileDefault, "file")
 	restore := flag.Bool("r", restoreDefault, "restore")
 	database := flag.String("d", databaseDefault, "database-dsn")
+	key := flag.String("k", keyDefault, "key")
 
 	flag.Parse()
 
@@ -47,6 +49,9 @@ func GetConfiguredServer(
 	}
 	if value, ok := os.LookupEnv("DATABASE_DSN"); ok && value != "" {
 		database = &value
+	}
+	if value, ok := os.LookupEnv("KEY"); ok && value != "" {
+		key = &value
 	}
 
 	logger, err := zap.NewProduction()
@@ -79,7 +84,7 @@ func GetConfiguredServer(
 		logger.Info("use mem storage", zap.Error(err))
 	}
 
-	server := NewServer(*addr, serverStorage, logger)
+	server := NewServer(*addr, serverStorage, *key, logger)
 
 	logger.Info("server started:",
 		zap.String("addr", *addr),
