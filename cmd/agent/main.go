@@ -10,8 +10,9 @@ func main() {
 	addrDefault := "localhost:8080"
 	pushDefault := 10
 	pollDefault := 2
-	key := ""
-	agnt, err := agent.GetConfiguredAgent(addrDefault, pushDefault, pollDefault, key)
+	keyDefault := ""
+	rateLimitDefault := 1000
+	agnt, err := agent.GetConfiguredAgent(addrDefault, pushDefault, pollDefault, keyDefault, rateLimitDefault)
 
 	if err != nil {
 		log.Fatalf("Agent configure error: %v", err)

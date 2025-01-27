@@ -18,11 +18,13 @@ func GetConfiguredAgent(
 	pushDefault int,
 	pollDefault int,
 	keyDefault string,
+	rateLimitDefault int,
 ) (*Agent, error) {
 	addr := flag.String("a", addrDefault, "address")
 	pushInterval := flag.Int("r", pushDefault, "push interval")
 	pollInterval := flag.Int("p", pollDefault, "poll interval")
 	key := flag.String("k", keyDefault, "key")
+	rateLimit := flag.Int("l", rateLimitDefault, "key")
 
 	flag.Parse()
 
@@ -50,6 +52,10 @@ func GetConfiguredAgent(
 		key = &value
 	}
 
+	if value, ok := os.LookupEnv("RATE_LIMIT"); ok && value != "" {
+		key = &value
+	}
+
 	if !strings.HasPrefix(*addr, "http://") && !strings.HasPrefix(*addr, "https://") {
 		*addr = "http://" + *addr
 	}
@@ -66,6 +72,7 @@ func GetConfiguredAgent(
 		time.Duration(*pollInterval)*time.Second,
 		time.Duration(*pushInterval)*time.Second,
 		*key,
+		*rateLimit,
 		logger,
 	)
 

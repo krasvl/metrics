@@ -11,9 +11,12 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
 	"go.uber.org/zap"
 
 	"metrics/internal/storage"
@@ -27,6 +30,8 @@ type Agent struct {
 	key          string
 	pollInterval time.Duration
 	pushInterval time.Duration
+	rateLimit    int
+	storageMutex sync.RWMutex
 }
 
 type Metric struct {
@@ -41,19 +46,21 @@ func NewAgent(
 	metricsStorage storage.MetricsStorage,
 	pollInterval, pushInterval time.Duration,
 	key string,
+	rateLimit int,
 	logger *zap.Logger) *Agent {
 	return &Agent{
 		serverURL:    serverURL,
 		pollInterval: pollInterval,
 		pushInterval: pushInterval,
 		key:          key,
+		rateLimit:    rateLimit,
 		storage:      metricsStorage,
 		client:       resty.New(),
 		logger:       logger,
 	}
 }
 
-func (a *Agent) pollMetrics() {
+func (a *Agent) pollDefaultMetrics() {
 	ctx := context.Background()
 
 	var m runtime.MemStats
@@ -94,27 +101,62 @@ func (a *Agent) pollMetrics() {
 		"PollCount": storage.Counter(1),
 	}
 
+	a.storageMutex.Lock()
 	if err := a.storage.SetGauges(ctx, gauges); err != nil {
 		a.logger.Error("can't set gauges", zap.Error(err))
+		return
 	}
-
 	if err := a.storage.SetCounters(ctx, counters); err != nil {
 		a.logger.Error("can't set counters", zap.Error(err))
+		return
 	}
+	a.storageMutex.Unlock()
+
+	a.logger.Info("poll Default success")
+}
+
+func (a *Agent) pollGopsutilMetrics() {
+	ctx := context.Background()
+	v, err := mem.VirtualMemory()
+	if err != nil {
+		a.logger.Error("can't get memory stats", zap.Error(err))
+		return
+	}
+	cpuUsage, err := cpu.Percent(0, false)
+	if err != nil {
+		a.logger.Error("can't get CPU stats", zap.Error(err))
+		return
+	}
+
+	gauges := map[string]storage.Gauge{
+		"TotalMemory":     storage.Gauge(v.Total),
+		"FreeMemory":      storage.Gauge(v.Free),
+		"CPUutilization1": storage.Gauge(cpuUsage[0]),
+	}
+
+	a.storageMutex.Lock()
+	if err := a.storage.SetGauges(ctx, gauges); err != nil {
+		a.logger.Error("can't set gauges", zap.Error(err))
+		return
+	}
+	a.storageMutex.Unlock()
+
+	a.logger.Info("poll Gopsutil success")
 }
 
 func (a *Agent) pushMetrics() {
 	ctx := context.Background()
 
+	a.storageMutex.RLock()
 	gauges, err := a.storage.GetGauges(ctx)
 	if err != nil {
 		a.logger.Error("cant get gauges", zap.Error(err))
 	}
-
 	counters, err := a.storage.GetCounters(ctx)
 	if err != nil {
 		a.logger.Error("cant get counters", zap.Error(err))
 	}
+	a.storageMutex.RUnlock()
 
 	metrics := make([]Metric, 0, len(gauges)+len(counters))
 
@@ -126,9 +168,12 @@ func (a *Agent) pushMetrics() {
 			Value: &val,
 		}
 		metrics = append(metrics, metric)
+
+		a.storageMutex.Lock()
 		if err := a.storage.ClearGauge(ctx, name); err != nil {
 			a.logger.Error("cant clear gauges", zap.Error(err))
 		}
+		a.storageMutex.Unlock()
 	}
 
 	for name, value := range counters {
@@ -139,9 +184,12 @@ func (a *Agent) pushMetrics() {
 			Delta: &delta,
 		}
 		metrics = append(metrics, metric)
+
+		a.storageMutex.Lock()
 		if err := a.storage.ClearCounter(ctx, name); err != nil {
 			a.logger.Error("cant clear counters", zap.Error(err))
 		}
+		a.storageMutex.Unlock()
 	}
 
 	if len(metrics) > 0 {
@@ -161,7 +209,7 @@ func (a *Agent) pushMetricsBatch(metrics []Metric) {
 		return
 	}
 
-	hash := getHash(a.key, compressed.Bytes())
+	hash := a.getHash(compressed.Bytes())
 
 	resp, err := a.withRetry(func() (*resty.Response, error) {
 		return a.client.R().
@@ -189,14 +237,14 @@ func (a *Agent) testPing() {
 	})
 
 	if err != nil {
-		a.logger.Warn("cant ping db", zap.Error(err))
+		a.logger.Warn("cant ping db")
 		return
 	}
 	if resp.StatusCode() != http.StatusOK {
-		a.logger.Warn("ping db fail", zap.Error(err))
+		a.logger.Warn("ping db fail")
 		return
 	}
-	a.logger.Info("ping success", zap.Error(err))
+	a.logger.Info("ping success")
 }
 
 func (a *Agent) withRetry(request func() (*resty.Response, error)) (*resty.Response, error) {
@@ -213,13 +261,19 @@ func (a *Agent) withRetry(request func() (*resty.Response, error)) (*resty.Respo
 	return resp, err
 }
 
-func getHash(key string, data []byte) string {
-	if key == "" {
+func (a *Agent) getHash(data []byte) string {
+	if a.key == "" {
 		return ""
 	}
-	h := hmac.New(sha256.New, []byte(key))
+	h := hmac.New(sha256.New, []byte(a.key))
 	h.Write(data)
 	return hex.EncodeToString(h.Sum(nil))
+}
+
+func (a *Agent) pushWorker(jobs <-chan struct{}) {
+	for range jobs {
+		a.pushMetrics()
+	}
 }
 
 func (a *Agent) Start() error {
@@ -228,12 +282,22 @@ func (a *Agent) Start() error {
 
 	a.testPing()
 
+	jobs := make(chan struct{}, a.rateLimit)
+	for range a.rateLimit {
+		go a.pushWorker(jobs)
+	}
+
 	for {
 		select {
 		case <-pollTicker.C:
-			a.pollMetrics()
+			go a.pollDefaultMetrics()
+			go a.pollGopsutilMetrics()
 		case <-reportTicker.C:
-			a.pushMetrics()
+			select {
+			case jobs <- struct{}{}:
+			default:
+				a.logger.Warn("cant push metrics, workers busy")
+			}
 		}
 	}
 }
