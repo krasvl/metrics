@@ -91,7 +91,7 @@ func TestPushMetrics(t *testing.T) {
 
 	agent.serverURL = ts.URL
 
-	agent.pushMetrics()
+	agent.pushMetrics(agent.getMetrics())
 }
 
 func TestPollMetrics(t *testing.T) {
@@ -169,7 +169,7 @@ func TestPollCounter(t *testing.T) {
 		return
 	}
 
-	agent.pushMetrics()
+	agent.pushMetrics(agent.getMetrics())
 
 	if v, _, _ := agent.storage.GetCounter(ctx, "PollCount"); v != 0 {
 		t.Errorf("expected PollCount 0, got %d", v)

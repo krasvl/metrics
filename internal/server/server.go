@@ -5,7 +5,7 @@ import (
 	"compress/gzip"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -186,7 +186,7 @@ func (s *Server) getHash(data []byte) string {
 	}
 	h := hmac.New(sha256.New, []byte(s.key))
 	h.Write(data)
-	return hex.EncodeToString(h.Sum(nil))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
 func (s *Server) Start() error {

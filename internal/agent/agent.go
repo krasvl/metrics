@@ -6,7 +6,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/hex"
+	"encoding/base64"
 	"encoding/json"
 	"math/rand/v2"
 	"net/http"
@@ -144,7 +144,7 @@ func (a *Agent) pollGopsutilMetrics() {
 	a.logger.Info("poll Gopsutil success")
 }
 
-func (a *Agent) pushMetrics() {
+func (a *Agent) getMetrics() []Metric {
 	ctx := context.Background()
 
 	a.storageMutex.RLock()
@@ -192,12 +192,10 @@ func (a *Agent) pushMetrics() {
 		a.storageMutex.Unlock()
 	}
 
-	if len(metrics) > 0 {
-		a.pushMetricsBatch(metrics)
-	}
+	return metrics
 }
 
-func (a *Agent) pushMetricsBatch(metrics []Metric) {
+func (a *Agent) pushMetrics(metrics []Metric) {
 	var compressed bytes.Buffer
 	writer := gzip.NewWriter(&compressed)
 	if err := json.NewEncoder(writer).Encode(metrics); err != nil {
@@ -267,12 +265,12 @@ func (a *Agent) getHash(data []byte) string {
 	}
 	h := hmac.New(sha256.New, []byte(a.key))
 	h.Write(data)
-	return hex.EncodeToString(h.Sum(nil))
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
-func (a *Agent) pushWorker(jobs <-chan struct{}) {
-	for range jobs {
-		a.pushMetrics()
+func (a *Agent) pushWorker(jobs <-chan []Metric) {
+	for metrics := range jobs {
+		a.pushMetrics(metrics)
 	}
 }
 
@@ -282,7 +280,7 @@ func (a *Agent) Start() error {
 
 	a.testPing()
 
-	jobs := make(chan struct{}, a.rateLimit)
+	jobs := make(chan []Metric, a.rateLimit)
 	for range a.rateLimit {
 		go a.pushWorker(jobs)
 	}
@@ -294,7 +292,7 @@ func (a *Agent) Start() error {
 			go a.pollGopsutilMetrics()
 		case <-reportTicker.C:
 			select {
-			case jobs <- struct{}{}:
+			case jobs <- a.getMetrics():
 			default:
 				a.logger.Warn("cant push metrics, workers busy")
 			}
