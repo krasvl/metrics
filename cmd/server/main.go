@@ -11,8 +11,9 @@ func main() {
 	fileDefault := "./store"
 	restoreDefault := true
 	databaseDefault := ""
+	key := ""
 
-	srv, err := server.GetConfiguredServer(addrDefault, intervalDefault, fileDefault, restoreDefault, databaseDefault)
+	srv, err := server.GetConfiguredServer(addrDefault, intervalDefault, fileDefault, restoreDefault, databaseDefault, key)
 
 	if err != nil {
 		log.Fatalf("Server configure error: %v", err)

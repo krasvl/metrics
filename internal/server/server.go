@@ -1,7 +1,11 @@
 package server
 
 import (
+	"bytes"
 	"compress/gzip"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -21,11 +25,12 @@ type Server struct {
 	handler *handlers.MetricsHandler
 	logger  *zap.Logger
 	addr    string
+	key     string
 }
 
-func NewServer(addr string, metricsStorage storage.MetricsStorage, logger *zap.Logger) *Server {
+func NewServer(addr string, metricsStorage storage.MetricsStorage, key string, logger *zap.Logger) *Server {
 	handler := handlers.NewMetricsHandler(metricsStorage, logger)
-	return &Server{addr: addr, storage: metricsStorage, handler: handler, logger: logger}
+	return &Server{addr: addr, key: key, storage: metricsStorage, handler: handler, logger: logger}
 }
 
 type gzipResponseWriter struct {
@@ -41,7 +46,7 @@ func (g *gzipResponseWriter) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-func WithDecompress(next http.Handler) http.Handler {
+func (s *Server) WithDecompress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			gz, err := gzip.NewReader(r.Body)
@@ -60,7 +65,7 @@ func WithDecompress(next http.Handler) http.Handler {
 	})
 }
 
-func WithCompress(next http.Handler) http.Handler {
+func (s *Server) WithCompress(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Accept-Encoding") == "gzip" &&
 			(r.Header.Get("Accept") == "application/json" || r.Header.Get("Accept") == "text/html") {
@@ -105,7 +110,7 @@ func (lrw *logResponseWriter) Write(data []byte) (int, error) {
 	return size, nil
 }
 
-func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
+func (s *Server) WithLogging(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -115,7 +120,7 @@ func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 
 		duration := time.Since(start)
 
-		logger.Info("Request processed",
+		s.logger.Info("Request processed",
 			zap.String("uri", r.RequestURI),
 			zap.String("method", r.Method),
 			zap.Duration("duration", duration),
@@ -125,15 +130,76 @@ func WithLogging(logger *zap.Logger, h http.Handler) http.Handler {
 	})
 }
 
+type hashResponseWriter struct {
+	http.ResponseWriter
+	writer io.Writer
+}
+
+func (rw *hashResponseWriter) Write(p []byte) (int, error) {
+	return rw.writer.Write(p)
+}
+
+func (s *Server) WithHashValidation(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.key == "" || r.Header.Get("HashSHA256") == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "cant read request body", http.StatusInternalServerError)
+			return
+		}
+		r.Body = io.NopCloser(io.Reader(bytes.NewBuffer(body)))
+
+		expectedHash := s.getHash(body)
+		receivedHash := r.Header.Get("HashSHA256")
+
+		if receivedHash != expectedHash {
+			http.Error(w, "invalid hash", http.StatusBadRequest)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) WithHashHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		buf := new(bytes.Buffer)
+		mw := io.MultiWriter(w, buf)
+		rw := &hashResponseWriter{ResponseWriter: w, writer: mw}
+
+		next.ServeHTTP(rw, r)
+
+		if s.key != "" && len(buf.Bytes()) > 0 {
+			hash := s.getHash(buf.Bytes())
+			w.Header().Set("HashSHA256", hash)
+		}
+	})
+}
+
+func (s *Server) getHash(data []byte) string {
+	if s.key == "" {
+		return ""
+	}
+	h := hmac.New(sha256.New, []byte(s.key))
+	h.Write(data)
+	return base64.StdEncoding.EncodeToString(h.Sum(nil))
+}
+
 func (s *Server) Start() error {
 	r := chi.NewRouter()
 
-	r.Use(func(next http.Handler) http.Handler {
-		return WithLogging(s.logger, next)
-	})
+	r.Use(s.WithLogging)
 
-	r.Use(WithDecompress)
-	r.Use(WithCompress)
+	r.Use(s.WithHashValidation)
+
+	r.Use(s.WithDecompress)
+	r.Use(s.WithCompress)
+
+	r.Use(s.WithHashHeader)
 
 	r.Get("/", s.handler.GetMetricsReportHandler)
 
