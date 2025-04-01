@@ -2,6 +2,7 @@ package pollers
 
 import (
 	"context"
+	"log"
 	"metrics/internal/storage"
 	"testing"
 )
@@ -45,8 +46,12 @@ func BenchmarkGetMetrics(b *testing.B) {
 	mockStorage := storage.NewMemStorage()
 	poller := &basePoller{storage: mockStorage}
 
-	mockStorage.SetGauges(ctx, map[string]storage.Gauge{"gauge1": 1.23})
-	mockStorage.SetCounters(ctx, map[string]storage.Counter{"counter1": 123})
+	if err := mockStorage.SetGauges(ctx, map[string]storage.Gauge{"gauge1": 1.23}); err != nil {
+		log.Println("set gauges error:", err)
+	}
+	if err := mockStorage.SetCounters(ctx, map[string]storage.Counter{"counter1": 123}); err != nil {
+		log.Println("set counters error:", err)
+	}
 
 	for i := 0; i < b.N; i++ {
 		if _, err := poller.getMetrics(ctx); err != nil {
@@ -60,8 +65,12 @@ func BenchmarkResetMetrics(b *testing.B) {
 	mockStorage := storage.NewMemStorage()
 	poller := &basePoller{storage: mockStorage}
 
-	mockStorage.SetGauges(ctx, map[string]storage.Gauge{"gauge1": 1.23})
-	mockStorage.SetCounters(ctx, map[string]storage.Counter{"counter1": 123})
+	if err := mockStorage.SetGauges(ctx, map[string]storage.Gauge{"gauge1": 1.23}); err != nil {
+		log.Println("set gauges error:", err)
+	}
+	if err := mockStorage.SetCounters(ctx, map[string]storage.Counter{"counter1": 123}); err != nil {
+		log.Println("set counters error:", err)
+	}
 
 	for i := 0; i < b.N; i++ {
 		if err := poller.resetMetrics(ctx); err != nil {

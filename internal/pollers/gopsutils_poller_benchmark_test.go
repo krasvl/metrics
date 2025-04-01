@@ -2,6 +2,7 @@ package pollers
 
 import (
 	"context"
+	"log"
 	"metrics/internal/storage"
 	"testing"
 )
@@ -22,8 +23,12 @@ func BenchmarkGopsutilPoller_GetMetrics(b *testing.B) {
 	memStorage := storage.NewMemStorage()
 	poller := NewGopsutilPoller(memStorage)
 
-	memStorage.SetGauges(ctx, map[string]storage.Gauge{"TotalMemory": 1024, "FreeMemory": 512})
-	memStorage.SetCounters(ctx, map[string]storage.Counter{"PollCount": 1})
+	if err := memStorage.SetGauges(ctx, map[string]storage.Gauge{"TotalMemory": 1024, "FreeMemory": 512}); err != nil {
+		log.Println("set gauges error:", err)
+	}
+	if err := memStorage.SetCounters(ctx, map[string]storage.Counter{"PollCount": 1}); err != nil {
+		log.Println("set counters error:", err)
+	}
 
 	for i := 0; i < b.N; i++ {
 		if _, err := poller.GetMetrics(ctx); err != nil {
@@ -37,8 +42,12 @@ func BenchmarkGopsutilPoller_ResetMetrics(b *testing.B) {
 	memStorage := storage.NewMemStorage()
 	poller := NewGopsutilPoller(memStorage)
 
-	memStorage.SetGauges(ctx, map[string]storage.Gauge{"TotalMemory": 1024, "FreeMemory": 512})
-	memStorage.SetCounters(ctx, map[string]storage.Counter{"PollCount": 1})
+	if err := memStorage.SetGauges(ctx, map[string]storage.Gauge{"TotalMemory": 1024, "FreeMemory": 512}); err != nil {
+		log.Println("set gauges error:", err)
+	}
+	if err := memStorage.SetCounters(ctx, map[string]storage.Counter{"PollCount": 1}); err != nil {
+		log.Println("set counters error:", err)
+	}
 
 	for i := 0; i < b.N; i++ {
 		if err := poller.ResetMetrics(ctx); err != nil {

@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -21,7 +22,9 @@ func BenchmarkAgent_Run_1Push(b *testing.B) {
 		}
 		if r.URL.Path == "/updates/" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status": "success"}`))
+			if _, err := w.Write([]byte(`{"status": "success"}`)); err != nil {
+				log.Println("write error:", err)
+			}
 			return
 		}
 		http.NotFound(w, r)
@@ -60,7 +63,9 @@ func BenchmarkAgent_Run_Milisecond_1000Push(b *testing.B) {
 		}
 		if r.URL.Path == "/updates/" {
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"status": "success"}`))
+			if _, err := w.Write([]byte(`{"status": "success"}`)); err != nil {
+				log.Println("write error:", err)
+			}
 			return
 		}
 		http.NotFound(w, r)
