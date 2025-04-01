@@ -12,14 +12,12 @@ type MetricsStorage interface {
 	GetGauges(ctx context.Context) (map[string]Gauge, error)
 	SetGauge(ctx context.Context, name string, value Gauge) error
 	SetGauges(ctx context.Context, values map[string]Gauge) error
-	ClearGauge(ctx context.Context, name string) error
 	ClearGauges(ctx context.Context) error
 
 	GetCounter(ctx context.Context, name string) (Counter, bool, error)
 	GetCounters(ctx context.Context) (map[string]Counter, error)
 	SetCounter(ctx context.Context, name string, value Counter) error
 	SetCounters(ctx context.Context, values map[string]Counter) error
-	ClearCounter(ctx context.Context, name string) error
 	ClearCounters(ctx context.Context) error
 }
 
@@ -59,11 +57,6 @@ func (ms *MemStorage) SetGauges(ctx context.Context, values map[string]Gauge) er
 	return nil
 }
 
-func (ms *MemStorage) ClearGauge(ctx context.Context, name string) error {
-	delete(ms.gauges, name)
-	return nil
-}
-
 func (ms *MemStorage) ClearGauges(ctx context.Context) error {
 	for k := range ms.gauges {
 		delete(ms.gauges, k)
@@ -92,11 +85,6 @@ func (ms *MemStorage) SetCounters(ctx context.Context, values map[string]Counter
 	for name, value := range values {
 		ms.counters[name] += value
 	}
-	return nil
-}
-
-func (ms *MemStorage) ClearCounter(ctx context.Context, name string) error {
-	delete(ms.counters, name)
 	return nil
 }
 

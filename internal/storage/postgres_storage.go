@@ -15,61 +15,17 @@ import (
 )
 
 type PostgresStorage struct {
-	logger           *zap.Logger
-	db               *sql.DB
-	connectionString string
+	logger *zap.Logger
+	db     *sql.DB
 }
 
-func NewPosgresStorage(connectionString string, logger *zap.Logger) (*PostgresStorage, error) {
+func NewPosgresStorage(db *sql.DB, logger *zap.Logger) (*PostgresStorage, error) {
 	storage := &PostgresStorage{
-		connectionString: connectionString,
-		logger:           logger,
+		db:     db,
+		logger: logger,
 	}
 
-	db, err := sql.Open("pgx", connectionString)
-	if err != nil {
-		return nil, fmt.Errorf("cant open db connection: %s, err: %w", connectionString, err)
-	}
-	storage.db = db
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	if err := storage.Ping(ctx); err != nil {
-		return nil, err
-	}
-
-	if err := storage.initTables(ctx); err != nil {
-		return nil, err
-	}
-
-	logger.Debug("db init success")
 	return storage, nil
-}
-
-func (s *PostgresStorage) initTables(ctx context.Context) error {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS gauges (
-			id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-			name VARCHAR(50) NOT NULL UNIQUE,
-			value DOUBLE PRECISION NOT NULL
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_gauges_name ON gauges (name);`,
-		`CREATE TABLE IF NOT EXISTS counters (
-			id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-			name VARCHAR(50) NOT NULL UNIQUE,
-			value BIGINT NOT NULL
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_counters_name ON counters (name);`,
-	}
-
-	for _, query := range queries {
-		_, err := s.db.ExecContext(ctx, query)
-		if err != nil {
-			return fmt.Errorf("cant init tables: %w", err)
-		}
-	}
-
-	return nil
 }
 
 func (s *PostgresStorage) Ping(ctx context.Context) error {
@@ -181,17 +137,6 @@ func (s *PostgresStorage) SetGauges(ctx context.Context, values map[string]Gauge
 	return nil
 }
 
-func (s *PostgresStorage) ClearGauge(ctx context.Context, name string) error {
-	err := s.withRetry(func() error {
-		_, err := s.db.ExecContext(ctx, "DELETE FROM gauges WHERE name = $1", name)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("cant clear gauge: %w", err)
-	}
-	return nil
-}
-
 func (s *PostgresStorage) ClearGauges(ctx context.Context) error {
 	err := s.withRetry(func() error {
 		_, err := s.db.ExecContext(ctx, "DELETE FROM gauges")
@@ -292,17 +237,6 @@ func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Cou
 		return fmt.Errorf("cant set gauges: %w", err)
 	}
 
-	return nil
-}
-
-func (s *PostgresStorage) ClearCounter(ctx context.Context, name string) error {
-	err := s.withRetry(func() error {
-		_, err := s.db.ExecContext(ctx, "DELETE FROM counters WHERE name = $1", name)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("cant clear counter: %w", err)
-	}
 	return nil
 }
 

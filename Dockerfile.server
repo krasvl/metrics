@@ -3,7 +3,6 @@ WORKDIR /app
 COPY . .
 RUN cd cmd/server && go build -o /server
 
-FROM debian:bookworm
+FROM ubuntu:latest
 COPY --from=builder /server /server
-EXPOSE 8080
 CMD ["/server"]

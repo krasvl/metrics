@@ -1,24 +1,31 @@
 package main
 
 import (
+	"context"
 	"log"
-
 	"metrics/internal/agent"
 )
 
-func main() {
+func Run(ctx context.Context) error {
 	addrDefault := "localhost:8080"
 	pushDefault := 10
 	pollDefault := 2
 	keyDefault := ""
 	rateLimitDefault := 1000
-	agnt, err := agent.GetConfiguredAgent(addrDefault, pushDefault, pollDefault, keyDefault, rateLimitDefault)
 
+	agnt, err := agent.GetConfiguredAgent(addrDefault, pushDefault, pollDefault, keyDefault, rateLimitDefault)
 	if err != nil {
-		log.Fatalf("Agent configure error: %v", err)
+		return err
 	}
 
-	if err := agnt.Start(); err != nil {
-		log.Fatalf("Agent error: %v", err)
+	return agnt.Start(ctx)
+}
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := Run(ctx); err != nil {
+		log.Printf("Agent error: %v", err)
 	}
 }

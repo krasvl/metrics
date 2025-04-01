@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"metrics/internal/server"
 )
 
-func main() {
+func Run(ctx context.Context) error {
 	addrDefault := "localhost:8080"
 	intervalDefault := 300
 	fileDefault := "./store"
@@ -14,12 +15,18 @@ func main() {
 	key := ""
 
 	srv, err := server.GetConfiguredServer(addrDefault, intervalDefault, fileDefault, restoreDefault, databaseDefault, key)
-
 	if err != nil {
-		log.Fatalf("Server configure error: %v", err)
+		return err
 	}
 
-	if err := srv.Start(); err != nil {
-		log.Fatalf("Server error: %v", err)
+	return srv.Start(ctx)
+}
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	if err := Run(ctx); err != nil {
+		log.Printf("Server error: %v", err)
 	}
 }

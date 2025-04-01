@@ -233,14 +233,15 @@ func (h *MetricsHandler) SetMetricHandler(w http.ResponseWriter, r *http.Request
 
 func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	if r.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
-		return
-	}
+	h.logger.Info("Received metrics batch",
+		zap.String("content_type", r.Header.Get("Content-Type")),
+		zap.String("content_encoding", r.Header.Get("Content-Encoding")),
+	)
 
 	var metrics []Metric
 	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
 		http.Error(w, "Bad json", http.StatusBadRequest)
+		h.logger.Error("Failed to decode metrics batch", zap.Error(err))
 		return
 	}
 
