@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/go-chi/chi/v5"
 
@@ -42,6 +43,16 @@ func NewServer(addr string, metricsStorage storage.MetricsStorage, key string, l
 	return &Server{addr: addr, key: key, storage: metricsStorage, handler: handler, logger: logger, config: config}
 }
 
+func pprofHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	return mux
+}
+
 func (s *Server) Start(ctx context.Context) error {
 	r := chi.NewRouter()
 
@@ -50,6 +61,8 @@ func (s *Server) Start(ctx context.Context) error {
 	r.Use(middleware.WithDecompress)
 	r.Use(middleware.WithCompress)
 	r.Use(middleware.WithHashHeader(s.key))
+
+	r.Mount("/debug/pprof", pprofHandler())
 
 	r.Get("/", s.handler.GetMetricsReportHandler)
 
