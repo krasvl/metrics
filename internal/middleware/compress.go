@@ -36,7 +36,6 @@ func WithCompress() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.GetHeader("Accept-Encoding") == "gzip" &&
 			(c.GetHeader("Accept") == "application/json" || c.GetHeader("Accept") == "text/html") {
-
 			c.Header("Content-Encoding", "gzip")
 			c.Header("Vary", "Accept-Encoding")
 
@@ -64,7 +63,10 @@ type gzipResponseWriter struct {
 }
 
 func (g *gzipResponseWriter) WriteString(s string) (int, error) {
-	return g.Write([]byte(s))
+	if sw, ok := g.Writer.(io.StringWriter); ok {
+		return sw.WriteString(s)
+	}
+	return g.Writer.Write([]byte(s))
 }
 
 func (g *gzipResponseWriter) Write(b []byte) (int, error) {
