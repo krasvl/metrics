@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"strconv"
 
+	"metrics/internal/storage"
+
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
-
-	"metrics/internal/storage"
 )
 
 type Metric struct {
