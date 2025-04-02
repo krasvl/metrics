@@ -11,6 +11,8 @@ import (
 	"metrics/internal/storage"
 )
 
+// GetConfiguredServer initializes and configures a new Server instance.
+// It reads configuration from flags and environment variables, sets up storage, and returns the configured server.
 func GetConfiguredServer(
 	addrDefault string,
 	intervalDefault int,
@@ -63,7 +65,7 @@ func GetConfiguredServer(
 		return nil, fmt.Errorf("cant create logger: %w", err)
 	}
 
-	config := Config{
+	config := &Config{
 		Address:         *addr,
 		StoreInterval:   *interval,
 		FileStoragePath: *file,
@@ -101,8 +103,7 @@ func GetConfiguredServer(
 		logger.Info("use mem storage", zap.Error(err))
 	}
 
-	server := NewServer(config.Address, serverStorage, config.Key, logger)
-	server.config = config
+	server := NewServer(serverStorage, logger, config)
 
 	logger.Info("server started:",
 		zap.String("addr", config.Address),

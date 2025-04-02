@@ -9,14 +9,17 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
+// GopsutilPoller collects system metrics using the gopsutil library.
 type GopsutilPoller struct {
 	basePoller
 }
 
+// NewGopsutilPoller creates a new instance of GopsutilPoller.
 func NewGopsutilPoller(ms storage.MetricsStorage) *GopsutilPoller {
 	return &GopsutilPoller{basePoller: basePoller{storage: ms}}
 }
 
+// Poll collects system metrics and stores them in the storage.
 func (p *GopsutilPoller) Poll() error {
 	ctx := context.Background()
 	v, err := mem.VirtualMemory()
@@ -41,10 +44,12 @@ func (p *GopsutilPoller) Poll() error {
 	return nil
 }
 
+// GetMetrics retrieves all collected metrics from the storage.
 func (p *GopsutilPoller) GetMetrics(ctx context.Context) ([]Metric, error) {
 	return p.getMetrics(ctx)
 }
 
+// ResetMetrics clears all collected metrics from the storage.
 func (p *GopsutilPoller) ResetMetrics(ctx context.Context) error {
 	return p.resetMetrics(ctx)
 }

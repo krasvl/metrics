@@ -10,7 +10,7 @@ import (
 
 	"metrics/internal/storage"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -54,18 +54,16 @@ func TestSetGaugeMetricHandler(t *testing.T) {
 			logger := zap.NewNop()
 			handler := NewMetricsHandler(mockStorage, logger)
 
-			req := httptest.NewRequest(http.MethodPost, "/update/gauge/"+tc.metricName+"/"+tc.metricValue, http.NoBody)
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("metricName", tc.metricName)
-			rctx.URLParams.Add("metricValue", tc.metricValue)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			router := gin.Default()
+			router.POST("/update/gauge/:metricName/:metricValue", handler.SetGaugeMetricHandler)
 
+			req := httptest.NewRequest(http.MethodPost, "/update/gauge/"+tc.metricName+"/"+tc.metricValue, http.NoBody)
 			w := httptest.NewRecorder()
-			handler.SetGaugeMetricHandler(w, req)
+			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tc.expectedCode, w.Code)
 			if !tc.expectError {
-				value, ok, _ := mockStorage.GetGauge(req.Context(), tc.metricName)
+				value, ok, _ := mockStorage.GetGauge(context.Background(), tc.metricName)
 				assert.True(t, ok)
 				assert.Equal(t, tc.expectedValue, value)
 			}
@@ -112,18 +110,16 @@ func TestSetCounterMetricHandler(t *testing.T) {
 			logger := zap.NewNop()
 			handler := NewMetricsHandler(mockStorage, logger)
 
-			req := httptest.NewRequest(http.MethodPost, "/update/counter/"+tc.metricName+"/"+tc.metricValue, http.NoBody)
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("metricName", tc.metricName)
-			rctx.URLParams.Add("metricValue", tc.metricValue)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			router := gin.Default()
+			router.POST("/update/counter/:metricName/:metricValue", handler.SetCounterMetricHandler)
 
+			req := httptest.NewRequest(http.MethodPost, "/update/counter/"+tc.metricName+"/"+tc.metricValue, http.NoBody)
 			w := httptest.NewRecorder()
-			handler.SetCounterMetricHandler(w, req)
+			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tc.expectedCode, w.Code)
 			if !tc.expectError {
-				value, ok, _ := mockStorage.GetCounter(req.Context(), tc.metricName)
+				value, ok, _ := mockStorage.GetCounter(context.Background(), tc.metricName)
 				assert.True(t, ok)
 				assert.Equal(t, tc.expectedValue, value)
 			}
@@ -168,13 +164,12 @@ func TestGetGaugeMetricHandler(t *testing.T) {
 				}
 			}
 
-			req := httptest.NewRequest(http.MethodGet, "/value/gauge/"+tc.metricName, http.NoBody)
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("metricName", tc.metricName)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			router := gin.Default()
+			router.GET("/value/gauge/:metricName", handler.GetGaugeMetricHandler)
 
+			req := httptest.NewRequest(http.MethodGet, "/value/gauge/"+tc.metricName, http.NoBody)
 			w := httptest.NewRecorder()
-			handler.GetGaugeMetricHandler(w, req)
+			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tc.expectedCode, w.Code)
 			if !tc.expectError {
@@ -221,13 +216,12 @@ func TestGetCounterMetricHandler(t *testing.T) {
 				}
 			}
 
-			req := httptest.NewRequest(http.MethodGet, "/value/counter/"+tc.metricName, http.NoBody)
-			rctx := chi.NewRouteContext()
-			rctx.URLParams.Add("metricName", tc.metricName)
-			req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+			router := gin.Default()
+			router.GET("/value/counter/:metricName", handler.GetCounterMetricHandler)
 
+			req := httptest.NewRequest(http.MethodGet, "/value/counter/"+tc.metricName, http.NoBody)
 			w := httptest.NewRecorder()
-			handler.GetCounterMetricHandler(w, req)
+			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tc.expectedCode, w.Code)
 			if !tc.expectError {
@@ -307,15 +301,15 @@ func TestSetMetricHandlers(t *testing.T) {
 				tc.setup()
 			}
 
+			router := gin.Default()
+			router.POST("/update/", handler.SetMetricHandler)
+			router.POST("/updates/", handler.SetMetricsHandler)
+
 			req := httptest.NewRequest(http.MethodPost, tc.url, bytes.NewReader(tc.body))
 			req.Header.Set("Content-Type", tc.contentType)
 
 			w := httptest.NewRecorder()
-			if tc.url == "/update/" {
-				handler.SetMetricHandler(w, req)
-			} else {
-				handler.SetMetricsHandler(w, req)
-			}
+			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tc.expectedCode, w.Code)
 			if tc.expectedBody != "" {
@@ -378,12 +372,15 @@ func TestGetMetricsHandler(t *testing.T) {
 				*tc.expectedBody.Delta = 10
 			}
 
+			router := gin.Default()
+			router.POST("/value/", handler.GetMetricsHandler)
+
 			body, _ := json.Marshal(tc.metric)
 			req := httptest.NewRequest(http.MethodPost, "/value/", bytes.NewReader(body))
 			req.Header.Set("Content-Type", "application/json")
 
 			w := httptest.NewRecorder()
-			handler.GetMetricsHandler(w, req)
+			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tc.expectedCode, w.Code)
 			if !tc.expectError {
@@ -401,11 +398,14 @@ func TestGetMetricsHandler_InvalidJSON(t *testing.T) {
 	logger := zap.NewNop()
 	handler := NewMetricsHandler(mockStorage, logger)
 
+	router := gin.Default()
+	router.POST("/value/", handler.GetMetricsHandler)
+
 	req := httptest.NewRequest(http.MethodPost, "/value/", bytes.NewReader([]byte("invalid json")))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
-	handler.GetMetricsHandler(w, req)
+	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "Bad json")
@@ -416,11 +416,14 @@ func TestGetMetricsHandler_UnsupportedContentType(t *testing.T) {
 	logger := zap.NewNop()
 	handler := NewMetricsHandler(mockStorage, logger)
 
+	router := gin.Default()
+	router.POST("/value/", handler.GetMetricsHandler)
+
 	req := httptest.NewRequest(http.MethodPost, "/value/", bytes.NewReader([]byte("{}")))
 	req.Header.Set("Content-Type", "text/plain")
 
 	w := httptest.NewRecorder()
-	handler.GetMetricsHandler(w, req)
+	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusUnsupportedMediaType, w.Code)
 	assert.Contains(t, w.Body.String(), "Unsupported Content-Type")
@@ -438,9 +441,12 @@ func TestGetMetricsReportHandler(t *testing.T) {
 		t.Fatalf("Failed to set counter: %v", err)
 	}
 
+	router := gin.Default()
+	router.GET("/report/", handler.GetMetricsReportHandler)
+
 	req := httptest.NewRequest(http.MethodGet, "/report/", http.NoBody)
 	w := httptest.NewRecorder()
-	handler.GetMetricsReportHandler(w, req)
+	router.ServeHTTP(w, req)
 
 	expectedHTML := `
 <!DOCTYPE html>
@@ -473,9 +479,12 @@ func TestPingHandler(t *testing.T) {
 	logger := zap.NewNop()
 	handler := NewMetricsHandler(mockStorage, logger)
 
+	router := gin.Default()
+	router.GET("/ping", handler.PingHandler)
+
 	req := httptest.NewRequest(http.MethodGet, "/ping", http.NoBody)
 	w := httptest.NewRecorder()
-	handler.PingHandler(w, req)
+	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 }

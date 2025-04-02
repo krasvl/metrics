@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -9,10 +8,11 @@ import (
 
 	"metrics/internal/storage"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
+// Metric represents a single metric with its type and value.
 type Metric struct {
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
@@ -20,127 +20,166 @@ type Metric struct {
 	MType string   `json:"type"`
 }
 
+// MetricsHandler handles HTTP requests for metrics operations.
 type MetricsHandler struct {
 	storage storage.MetricsStorage
 	logger  *zap.Logger
 }
 
+// NewMetricsHandler creates a new instance of MetricsHandler.
 func NewMetricsHandler(metricsStorage storage.MetricsStorage, logger *zap.Logger) *MetricsHandler {
 	return &MetricsHandler{storage: metricsStorage, logger: logger}
 }
 
-func (h *MetricsHandler) SetGaugeMetricHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	metricName := chi.URLParam(r, "metricName")
-	metricValue := chi.URLParam(r, "metricValue")
+// SetGaugeMetricHandler handles setting a gauge metric.
+// @Summary Set Gauge Metric.
+// @Description Sets a gauge metric by name and value.
+// @Tags Metrics.
+// @Param metricName path string true "Metric Name".
+// @Param metricValue path string true "Metric Value".
+// @Success 200 {string} string "OK".
+// @Failure 400 {string} string "Bad Request".
+// @Failure 404 {string} string "Not Found".
+// @Router /update/gauge/{metricName}/{metricValue} [post].
+func (h *MetricsHandler) SetGaugeMetricHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	metricName := c.Param("metricName")
+	metricValue := c.Param("metricValue")
 
 	if metricName == "" {
-		http.Error(w, "No metric name", http.StatusNotFound)
+		c.String(http.StatusNotFound, "No metric name")
 		return
 	}
 	value, err := strconv.ParseFloat(metricValue, 64)
 	if err != nil {
-		http.Error(w, "Gauge must be float32", http.StatusBadRequest)
+		c.String(http.StatusBadRequest, "Gauge must be float32")
 		return
 	}
 
 	if err := h.storage.SetGauge(ctx, metricName, storage.Gauge(value)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, err.Error())
 		h.logger.Error("cant set gauge", zap.Error(err))
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	c.Status(http.StatusOK)
 }
 
-func (h *MetricsHandler) SetCounterMetricHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	metricName := chi.URLParam(r, "metricName")
-	metricValue := chi.URLParam(r, "metricValue")
+// SetCounterMetricHandler handles setting a counter metric.
+// @Summary Set Counter Metric.
+// @Description Sets a counter metric by name and value.
+// @Tags Metrics.
+// @Param metricName path string true "Metric Name".
+// @Param metricValue path string true "Metric Value".
+// @Success 200 {string} string "OK".
+// @Failure 400 {string} string "Bad Request".
+// @Failure 404 {string} string "Not Found".
+// @Router /update/counter/{metricName}/{metricValue} [post].
+func (h *MetricsHandler) SetCounterMetricHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	metricName := c.Param("metricName")
+	metricValue := c.Param("metricValue")
 
 	if metricName == "" {
-		http.Error(w, "No metric name", http.StatusNotFound)
+		c.String(http.StatusNotFound, "No metric name")
 		return
 	}
 	value, err := strconv.ParseInt(metricValue, 10, 32)
 	if err != nil {
-		http.Error(w, "Counter must be int32", http.StatusBadRequest)
+		c.String(http.StatusBadRequest, "Counter must be int32")
 		return
 	}
 
 	if err := h.storage.SetCounter(ctx, metricName, storage.Counter(value)); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		h.logger.Error("cant set couter", zap.Error(err))
+		c.String(http.StatusInternalServerError, err.Error())
+		h.logger.Error("cant set counter", zap.Error(err))
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	c.Status(http.StatusOK)
 }
 
-func (h *MetricsHandler) GetGaugeMetricHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	metricName := chi.URLParam(r, "metricName")
+// GetGaugeMetricHandler handles retrieving a gauge metric.
+// @Summary Get Gauge Metric.
+// @Description Retrieves a gauge metric by name.
+// @Tags Metrics.
+// @Param metricName path string true "Metric Name".
+// @Success 200 {string} string "Metric Value".
+// @Failure 404 {string} string "Not Found".
+// @Router /value/gauge/{metricName} [get].
+func (h *MetricsHandler) GetGaugeMetricHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	metricName := c.Param("metricName")
 	if metricName == "" {
-		http.Error(w, "No metric name", http.StatusNotFound)
+		c.String(http.StatusNotFound, "No metric name")
 		return
 	}
 	value, ok, err := h.storage.GetGauge(ctx, metricName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, err.Error())
 		h.logger.Error("cant get gauge", zap.Error(err))
 		return
 	}
 
 	if !ok {
-		http.Error(w, "No such metric", http.StatusNotFound)
+		c.String(http.StatusNotFound, "No such metric")
 		return
 	}
 
-	if _, err := w.Write([]byte(strconv.FormatFloat(float64(value), 'f', -1, 64))); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		h.logger.Error("Failed to write response", zap.Error(err))
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+	c.String(http.StatusOK, strconv.FormatFloat(float64(value), 'f', -1, 64))
 }
 
-func (h *MetricsHandler) GetCounterMetricHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	metricName := chi.URLParam(r, "metricName")
+// GetCounterMetricHandler handles retrieving a counter metric.
+// @Summary Get Counter Metric.
+// @Description Retrieves a counter metric by name.
+// @Tags Metrics.
+// @Param metricName path string true "Metric Name".
+// @Success 200 {string} string "Metric Value".
+// @Failure 404 {string} string "Not Found".
+// @Router /value/counter/{metricName} [get].
+func (h *MetricsHandler) GetCounterMetricHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	metricName := c.Param("metricName")
 	if metricName == "" {
-		http.Error(w, "No metric name", http.StatusNotFound)
+		c.String(http.StatusNotFound, "No metric name")
 		return
 	}
 	value, ok, err := h.storage.GetCounter(ctx, metricName)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		c.String(http.StatusInternalServerError, err.Error())
 		h.logger.Error("cant get counter", zap.Error(err))
 		return
 	}
 
 	if !ok {
-		http.Error(w, "No such metric", http.StatusNotFound)
+		c.String(http.StatusNotFound, "No such metric")
 		return
 	}
 
-	if _, err := w.Write([]byte(strconv.FormatInt(int64(value), 10))); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		h.logger.Error("Failed to write response", zap.Error(err))
-		return
-	}
-	w.WriteHeader(http.StatusOK)
+	c.String(http.StatusOK, strconv.FormatInt(int64(value), 10))
 }
 
-func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	if r.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
+// GetMetricsHandler handles retrieving a metric by ID.
+// @Summary Get Metric.
+// @Description Retrieves a metric by its ID.
+// @Tags Metrics.
+// @Accept json.
+// @Produce json.
+// @Param metric body Metric true "Metric".
+// @Success 200 {object} Metric.
+// @Failure 400 {string} string "Bad Request".
+// @Failure 404 {string} string "Not Found".
+// @Router /value [post].
+func (h *MetricsHandler) GetMetricsHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	if c.GetHeader("Content-Type") != "application/json" {
+		c.String(http.StatusUnsupportedMediaType, "Unsupported Content-Type, expected application/json")
 		return
 	}
 
 	var metric Metric
-	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-		http.Error(w, "Bad json", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&metric); err != nil {
+		c.String(http.StatusBadRequest, "Bad json")
 		return
 	}
 
@@ -148,12 +187,12 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 	case "gauge":
 		value, ok, err := h.storage.GetGauge(ctx, metric.ID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.String(http.StatusInternalServerError, err.Error())
 			h.logger.Error("cant get gauge", zap.Error(err))
 			return
 		}
 		if !ok {
-			http.Error(w, "No such metric", http.StatusNotFound)
+			c.String(http.StatusNotFound, "No such metric")
 			return
 		}
 		metric.Value = new(float64)
@@ -161,87 +200,97 @@ func (h *MetricsHandler) GetMetricsHandler(w http.ResponseWriter, r *http.Reques
 	case "counter":
 		value, ok, err := h.storage.GetCounter(ctx, metric.ID)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.String(http.StatusInternalServerError, err.Error())
 			h.logger.Error("cant get counter", zap.Error(err))
 			return
 		}
 		if !ok {
-			http.Error(w, "No such metric", http.StatusNotFound)
+			c.String(http.StatusNotFound, "No such metric")
 			return
 		}
 		metric.Delta = new(int64)
 		*metric.Delta = int64(value)
 	default:
-		http.Error(w, "No such metric", http.StatusBadRequest)
+		c.String(http.StatusBadRequest, "No such metric")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(metric); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		h.logger.Error("Failed to write response", zap.Error(err))
-		return
-	}
+	c.JSON(http.StatusOK, metric)
 }
 
-func (h *MetricsHandler) SetMetricHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	if r.Header.Get("Content-Type") != "application/json" {
-		http.Error(w, "Unsupported Content-Type, expected application/json", http.StatusUnsupportedMediaType)
+// SetMetricHandler handles setting a single metric.
+// @Summary Set Metric.
+// @Description Sets a single metric.
+// @Tags Metrics.
+// @Accept json.
+// @Produce json.
+// @Param metric body Metric true "Metric".
+// @Success 200 {object} Metric.
+// @Failure 400 {string} string "Bad Request".
+// @Router /update [post].
+func (h *MetricsHandler) SetMetricHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	if c.GetHeader("Content-Type") != "application/json" {
+		c.String(http.StatusUnsupportedMediaType, "Unsupported Content-Type, expected application/json")
 		return
 	}
 
 	var metric Metric
-	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-		http.Error(w, "Bad json", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&metric); err != nil {
+		c.String(http.StatusBadRequest, "Bad json")
 		return
 	}
 
 	switch metric.MType {
 	case "gauge":
 		if metric.Value == nil {
-			http.Error(w, "Gauge must be float32", http.StatusBadRequest)
+			c.String(http.StatusBadRequest, "Gauge must be float32")
 			return
 		}
 		if err := h.storage.SetGauge(ctx, metric.ID, storage.Gauge(*metric.Value)); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.String(http.StatusInternalServerError, err.Error())
 			h.logger.Error("cant set gauge", zap.Error(err))
 			return
 		}
 	case "counter":
 		if metric.Delta == nil {
-			http.Error(w, "Counter must be int32", http.StatusBadRequest)
+			c.String(http.StatusBadRequest, "Counter must be int32")
 			return
 		}
 		if err := h.storage.SetCounter(ctx, metric.ID, storage.Counter(*metric.Delta)); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			c.String(http.StatusInternalServerError, err.Error())
 			h.logger.Error("cant set counter", zap.Error(err))
 			return
 		}
 	default:
-		http.Error(w, "No such metric", http.StatusBadRequest)
+		c.String(http.StatusBadRequest, "No such metric")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(metric); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		h.logger.Error("Failed to write response", zap.Error(err))
-		return
-	}
+	c.JSON(http.StatusOK, metric)
 }
 
-func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	h.logger.Info("Received metrics batch",
-		zap.String("content_type", r.Header.Get("Content-Type")),
-		zap.String("content_encoding", r.Header.Get("Content-Encoding")),
+// SetMetricsHandler handles setting multiple metrics in a batch.
+// @Summary Set Metrics Batch.
+// @Description Sets multiple metrics in a batch.
+// @Tags Metrics.
+// @Accept json.
+// @Produce json.
+// @Param metrics body []Metric true "Metrics Batch".
+// @Success 200 {array} Metric.
+// @Failure 400 {string} string "Bad Request".
+// @Router /updates [post].
+func (h *MetricsHandler) SetMetricsHandler(c *gin.Context) {
+	ctx := c.Request.Context()
+	h.logger.Info("Received metrics batch.",
+		zap.String("content_type", c.GetHeader("Content-Type")),
+		zap.String("content_encoding", c.GetHeader("Content-Encoding")),
 	)
 
 	var metrics []Metric
-	if err := json.NewDecoder(r.Body).Decode(&metrics); err != nil {
-		http.Error(w, "Bad json", http.StatusBadRequest)
-		h.logger.Error("Failed to decode metrics batch", zap.Error(err))
+	if err := c.ShouldBindJSON(&metrics); err != nil {
+		c.String(http.StatusBadRequest, "Bad json")
+		h.logger.Error("Failed to decode metrics batch.", zap.Error(err))
 		return
 	}
 
@@ -252,59 +301,67 @@ func (h *MetricsHandler) SetMetricsHandler(w http.ResponseWriter, r *http.Reques
 		switch metric.MType {
 		case "gauge":
 			if metric.Value == nil {
-				http.Error(w, fmt.Sprintf("Gauge %s must be float32", metric.ID), http.StatusBadRequest)
+				c.String(http.StatusBadRequest, fmt.Sprintf("Gauge %s must be float32.", metric.ID))
 				return
 			}
 			gaugeMetrics[metric.ID] = storage.Gauge(*metric.Value)
 		case "counter":
 			if metric.Delta == nil {
-				http.Error(w, fmt.Sprintf("Counter %s must be int32", metric.ID), http.StatusBadRequest)
+				c.String(http.StatusBadRequest, fmt.Sprintf("Counter %s must be int32.", metric.ID))
 				return
 			}
 			counterMetrics[metric.ID] += storage.Counter(*metric.Delta)
 		default:
-			http.Error(w, fmt.Sprintf("No metric %s type", metric.ID), http.StatusBadRequest)
+			c.String(http.StatusBadRequest, fmt.Sprintf("No metric %s type.", metric.ID))
 			return
 		}
 	}
 
 	if len(gaugeMetrics) > 0 {
 		if err := h.storage.SetGauges(ctx, gaugeMetrics); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			h.logger.Error("cant set gauges", zap.Error(err))
+			c.String(http.StatusInternalServerError, err.Error())
+			h.logger.Error("cant set gauges.", zap.Error(err))
 			return
 		}
 	}
 
 	if len(counterMetrics) > 0 {
 		if err := h.storage.SetCounters(ctx, counterMetrics); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			h.logger.Error("cant set counters", zap.Error(err))
+			c.String(http.StatusInternalServerError, err.Error())
+			h.logger.Error("cant set counters.", zap.Error(err))
 			return
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(metrics); err != nil {
-		http.Error(w, "Failed to write response", http.StatusInternalServerError)
-		h.logger.Error("Failed to write response", zap.Error(err))
-		return
-	}
+	c.JSON(http.StatusOK, metrics)
 }
 
-func (h *MetricsHandler) GetMetricsReportHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+// GetMetricsReportHandler handles generating an HTML report of all metrics.
+// @Summary Get Metrics Report.
+// @Description Returns an HTML report of all metrics.
+// @Tags Metrics.
+// @Produce html.
+// @Success 200 {string} string "HTML report".
+// @Router / [get].
+func (h *MetricsHandler) GetMetricsReportHandler(c *gin.Context) {
+	ctx := c.Request.Context()
 	gauges, err := h.storage.GetGauges(ctx)
+	h.logger.Info("Received gauges.",
+		zap.String("gauges", fmt.Sprintf("%v", gauges)),
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		h.logger.Error("cant get gauges", zap.Error(err))
+		c.String(http.StatusInternalServerError, err.Error())
+		h.logger.Error("cant get gauges.", zap.Error(err))
 		return
 	}
 
 	counters, err := h.storage.GetCounters(ctx)
+	h.logger.Info("Received counters.",
+		zap.String("counters", fmt.Sprintf("%v", counters)),
+	)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		h.logger.Error("cant get counters", zap.Error(err))
+		c.String(http.StatusInternalServerError, err.Error())
+		h.logger.Error("cant get counters.", zap.Error(err))
 		return
 	}
 
@@ -337,26 +394,32 @@ func (h *MetricsHandler) GetMetricsReportHandler(w http.ResponseWriter, r *http.
 </html>
 	`))
 
-	w.Header().Set("Content-Type", "text/html")
-	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, "Cant render report", http.StatusInternalServerError)
-		h.logger.Error("Cant render report", zap.Error(err))
+	c.Header("Content-Type", "text/html")
+	if err := tmpl.Execute(c.Writer, data); err != nil {
+		c.String(http.StatusInternalServerError, "Cant render report.")
+		h.logger.Error("Cant render report.", zap.Error(err))
 	}
 }
 
-func (h *MetricsHandler) PingHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+// PingHandler handles health checks.
+// @Summary Ping.
+// @Description Health check endpoint.
+// @Tags Health.
+// @Success 200 {string} string "OK".
+// @Router /ping [get].
+func (h *MetricsHandler) PingHandler(c *gin.Context) {
+	ctx := c.Request.Context()
 	switch dbstorage := h.storage.(type) {
 	case *storage.PostgresStorage:
 		if err := dbstorage.Ping(ctx); err != nil {
-			http.Error(w, "cant ping db", http.StatusInternalServerError)
-			h.logger.Error("cant ping db", zap.Error(err))
+			c.String(http.StatusInternalServerError, "cant ping db.")
+			h.logger.Error("cant ping db.", zap.Error(err))
 			return
 		}
-		w.WriteHeader(http.StatusOK)
+		c.Status(http.StatusOK)
 
 	default:
-		w.WriteHeader(http.StatusOK)
+		c.Status(http.StatusOK)
 		return
 	}
 }

@@ -7,13 +7,17 @@ import (
 	"sync"
 )
 
+// MType represents the type of a metric (gauge or counter).
 type MType string
 
 const (
-	TypeGauge   MType = "gauge"
+	// TypeGauge represents a gauge metric type.
+	TypeGauge MType = "gauge"
+	// TypeCounter represents a counter metric type.
 	TypeCounter MType = "counter"
 )
 
+// Metric represents a single metric with its type and value.
 type Metric struct {
 	Delta *int64   `json:"delta,omitempty"`
 	Value *float64 `json:"value,omitempty"`
@@ -21,9 +25,13 @@ type Metric struct {
 	MType MType    `json:"type"`
 }
 
+// Poller defines the interface for metric pollers.
 type Poller interface {
+	// Poll collects metrics and stores them in the storage.
 	Poll() error
+	// GetMetrics retrieves all collected metrics from the storage.
 	GetMetrics(ctx context.Context) ([]Metric, error)
+	// ResetMetrics clears all collected metrics from the storage.
 	ResetMetrics(ctx context.Context) error
 }
 

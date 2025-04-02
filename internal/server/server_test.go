@@ -10,37 +10,48 @@ import (
 
 	"go.uber.org/zap/zaptest"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestServerRoutes(t *testing.T) {
 	logger := zaptest.NewLogger(t)
 	mockStorage := storage.NewMemStorage()
-	server := NewServer(":8080", mockStorage, "test-key", logger)
+	config := Config{
+		Address: ":8080",
+		Key:     "test-key",
+	}
+	server := NewServer(mockStorage, logger, &config)
 
-	r := chi.NewRouter()
-	r.Use(middleware.WithLogging(server.logger))
-	r.Use(middleware.WithHashValidation(server.key))
-	r.Use(middleware.WithDecompress)
-	r.Use(middleware.WithCompress)
-	r.Use(middleware.WithHashHeader(server.key))
+	router := gin.Default()
+	router.Use(middleware.WithLogging(server.logger))
+	router.Use(middleware.WithHashValidation(server.config.Key))
+	router.Use(middleware.WithDecompress())
+	router.Use(middleware.WithCompress())
+	router.Use(middleware.WithHashHeader(server.config.Key))
 
-	r.Get("/", server.handler.GetMetricsReportHandler)
-	r.Get("/ping", server.handler.PingHandler)
+	registerPprofRoutes(router)
+
+	router.GET("/", server.handler.GetMetricsReportHandler)
+	router.GET("/ping", server.handler.PingHandler)
 
 	req, _ := http.NewRequest(http.MethodGet, "/", http.NoBody)
 	resp := httptest.NewRecorder()
-	r.ServeHTTP(resp, req)
+	router.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusOK, resp.Code)
 
 	req, _ = http.NewRequest(http.MethodGet, "/ping", http.NoBody)
 	resp = httptest.NewRecorder()
-	r.ServeHTTP(resp, req)
+	router.ServeHTTP(resp, req)
+	assert.Equal(t, http.StatusOK, resp.Code)
+
+	req, _ = http.NewRequest(http.MethodGet, "/debug/pprof/", http.NoBody)
+	resp = httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusOK, resp.Code)
 
 	req, _ = http.NewRequest(http.MethodGet, "/invalid", http.NoBody)
 	resp = httptest.NewRecorder()
-	r.ServeHTTP(resp, req)
+	router.ServeHTTP(resp, req)
 	assert.Equal(t, http.StatusNotFound, resp.Code)
 }

@@ -22,11 +22,12 @@ services:
     environment:
       ADDRESS:  "0.0.0.0:8080"
       DATABASE_DSN: "postgres://postgres:postgres@postgres:5432/metrics?sslmode=disable"
+      GIN_MODE: release
     ports:
       - "8080:8080"
     command: ["/server"]
 
-  agent:
+  agent1:
     build:
       context: .
       dockerfile: Dockerfile.agent
@@ -34,5 +35,33 @@ services:
       server:
         condition: service_started
     environment:
+      REPORT_INTERVAL: 50
+      POLL_INTERVAL: 5
+      ADDRESS:  "server:8080"
+    command: ["/agent"]
+
+  agent2:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      REPORT_INTERVAL: 100
+      POLL_INTERVAL: 10
+      ADDRESS:  "server:8080"
+    command: ["/agent"]
+
+  agent3:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    depends_on:
+      server:
+        condition: service_started
+    environment:
+      REPORT_INTERVAL: 150
+      POLL_INTERVAL: 15
       ADDRESS:  "server:8080"
     command: ["/agent"]

@@ -17,6 +17,7 @@ import (
 	"metrics/internal/utils"
 )
 
+// Config holds the configuration parameters for the Agent.
 type Config struct {
 	ServerURL    string
 	Key          string
@@ -25,6 +26,7 @@ type Config struct {
 	RateLimit    int
 }
 
+// Agent represents a metrics collection and reporting agent.
 type Agent struct {
 	client  *resty.Client
 	logger  *zap.Logger
@@ -32,6 +34,7 @@ type Agent struct {
 	config  Config
 }
 
+// NewAgent creates a new instance of Agent.
 func NewAgent(config Config, logger *zap.Logger, pollerList []pollers.Poller) *Agent {
 	return &Agent{
 		config:  config,
@@ -41,6 +44,7 @@ func NewAgent(config Config, logger *zap.Logger, pollerList []pollers.Poller) *A
 	}
 }
 
+// Start begins the metrics collection and reporting process.
 func (a *Agent) Start(ctx context.Context) error {
 	pollTicker := time.NewTicker(a.config.PollInterval)
 	reportTicker := time.NewTicker(a.config.PushInterval)

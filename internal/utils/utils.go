@@ -13,6 +13,7 @@ import (
 	"github.com/go-resty/resty/v2"
 )
 
+// GetHash generates a HMAC-SHA256 hash of the given data using the provided key.
 func GetHash(key string, data []byte) string {
 	if key == "" {
 		return ""
@@ -22,6 +23,7 @@ func GetHash(key string, data []byte) string {
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
+// WithRestyRetry retries a Resty request with exponential backoff.
 func WithRestyRetry(request func() (*resty.Response, error)) (*resty.Response, error) {
 	var resp *resty.Response
 	var err error
@@ -35,6 +37,7 @@ func WithRestyRetry(request func() (*resty.Response, error)) (*resty.Response, e
 	return resp, err
 }
 
+// WithFileRetry retries opening a file with exponential backoff.
 func WithFileRetry(open func() (*os.File, error)) (*os.File, error) {
 	var f *os.File
 	var err error

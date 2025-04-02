@@ -42,7 +42,7 @@ func NewFileStorage(file string, pushInterval int, restore bool, logger *zap.Log
 	}
 
 	if pushInterval > 0 {
-		ticker := time.NewTicker(time.Duration(pushInterval) * time.Second)
+		ticker := time.NewTicker(time.Duration(pushInterval) * time.Millisecond)
 		go func() {
 			for range ticker.C {
 				if err := storage.saveToFile(context.Background()); err != nil {

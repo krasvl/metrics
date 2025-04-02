@@ -8,8 +8,8 @@ import (
 
 func Run(ctx context.Context) error {
 	addrDefault := "localhost:8080"
-	pushDefault := 10
-	pollDefault := 2
+	pushDefault := 10_000
+	pollDefault := 2_000
 	keyDefault := ""
 	rateLimitDefault := 1000
 

@@ -14,6 +14,8 @@ import (
 	"go.uber.org/zap"
 )
 
+// GetConfiguredAgent initializes and configures a new Agent instance.
+// It reads configuration from flags and environment variables, sets up pollers, and returns the configured agent.
 func GetConfiguredAgent(
 	addrDefault string,
 	pushDefault int,
@@ -76,8 +78,8 @@ func GetConfiguredAgent(
 	config := Config{
 		ServerURL:    *addr,
 		Key:          *key,
-		PollInterval: time.Duration(*pollInterval) * time.Second,
-		PushInterval: time.Duration(*pushInterval) * time.Second,
+		PollInterval: time.Duration(*pollInterval) * time.Millisecond,
+		PushInterval: time.Duration(*pushInterval) * time.Millisecond,
 		RateLimit:    *rateLimit,
 	}
 

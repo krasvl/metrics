@@ -8,14 +8,17 @@ import (
 	"runtime"
 )
 
+// DefaultPoller collects runtime metrics using the Go runtime package.
 type DefaultPoller struct {
 	basePoller
 }
 
+// NewDefaultPoller creates a new instance of DefaultPoller.
 func NewDefaultPoller(ms storage.MetricsStorage) *DefaultPoller {
 	return &DefaultPoller{basePoller: basePoller{storage: ms}}
 }
 
+// Poll collects runtime metrics and stores them in the storage.
 func (p *DefaultPoller) Poll() error {
 	ctx := context.Background()
 
@@ -67,10 +70,12 @@ func (p *DefaultPoller) Poll() error {
 	return nil
 }
 
+// GetMetrics retrieves all collected metrics from the storage.
 func (p *DefaultPoller) GetMetrics(ctx context.Context) ([]Metric, error) {
 	return p.getMetrics(ctx)
 }
 
+// ResetMetrics clears all collected metrics from the storage.
 func (p *DefaultPoller) ResetMetrics(ctx context.Context) error {
 	return p.resetMetrics(ctx)
 }

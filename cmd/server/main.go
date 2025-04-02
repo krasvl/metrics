@@ -8,7 +8,7 @@ import (
 
 func Run(ctx context.Context) error {
 	addrDefault := "localhost:8080"
-	intervalDefault := 300
+	intervalDefault := 300_000
 	fileDefault := "./store"
 	restoreDefault := true
 	databaseDefault := ""

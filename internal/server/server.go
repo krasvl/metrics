@@ -6,15 +6,20 @@ import (
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"go.uber.org/zap"
+
+	_ "metrics/docs"
 
 	"metrics/internal/handlers"
 	"metrics/internal/middleware"
 	"metrics/internal/storage"
 )
 
+// Config holds the server configuration parameters.
 type Config struct {
 	Address         string
 	Key             string
@@ -25,84 +30,69 @@ type Config struct {
 	StoreFile       bool
 }
 
+// Server represents the HTTP server for the metrics service.
 type Server struct {
 	storage storage.MetricsStorage
 	handler *handlers.MetricsHandler
 	logger  *zap.Logger
-	addr    string
-	key     string
 	config  Config
 }
 
-func NewServer(addr string, metricsStorage storage.MetricsStorage, key string, logger *zap.Logger) *Server {
+// NewServer creates a new instance of the Server.
+// @title Metrics API
+// @version 1.0
+// @description API documentation for the Metrics service.
+// @host localhost:8080
+// @BasePath /.
+func NewServer(metricsStorage storage.MetricsStorage, logger *zap.Logger, config *Config) *Server {
 	handler := handlers.NewMetricsHandler(metricsStorage, logger)
-	config := Config{
-		Address: addr,
-		Key:     key,
-	}
-	return &Server{addr: addr, key: key, storage: metricsStorage, handler: handler, logger: logger, config: config}
+	return &Server{storage: metricsStorage, handler: handler, logger: logger, config: *config}
 }
 
-func pprofHandler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	return mux
+func registerPprofRoutes(router *gin.Engine) {
+	pprofGroup := router.Group("/debug/pprof")
+	pprofGroup.GET("/", gin.WrapH(http.HandlerFunc(pprof.Index)))
+	pprofGroup.GET("/cmdline", gin.WrapH(http.HandlerFunc(pprof.Cmdline)))
+	pprofGroup.GET("/profile", gin.WrapH(http.HandlerFunc(pprof.Profile)))
+	pprofGroup.GET("/symbol", gin.WrapH(http.HandlerFunc(pprof.Symbol)))
+	pprofGroup.GET("/trace", gin.WrapH(http.HandlerFunc(pprof.Trace)))
 }
 
+// Start starts the HTTP server and listens for incoming requests.
+// @title Start Server
+// @description Starts the HTTP server with all routes and middleware.
 func (s *Server) Start(ctx context.Context) error {
-	r := chi.NewRouter()
+	router := gin.Default()
 
-	r.Use(middleware.WithLogging(s.logger))
-	r.Use(middleware.WithHashValidation(s.key))
-	r.Use(middleware.WithDecompress)
-	r.Use(middleware.WithCompress)
-	r.Use(middleware.WithHashHeader(s.key))
+	router.Use(middleware.WithLogging(s.logger))
+	router.Use(middleware.WithHashValidation(s.config.Key))
+	router.Use(middleware.WithDecompress())
+	router.Use(middleware.WithCompress())
+	router.Use(middleware.WithHashHeader(s.config.Key))
 
-	r.Mount("/debug/pprof", pprofHandler())
+	// Pprof routes
+	registerPprofRoutes(router)
 
-	r.Get("/", s.handler.GetMetricsReportHandler)
+	// Swagger documentation route
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	r.Get("/ping", s.handler.PingHandler)
+	router.GET("/", s.handler.GetMetricsReportHandler)
 
-	r.Route("/value", func(r chi.Router) {
-		r.Post("/", s.handler.GetMetricsHandler)
+	router.GET("/ping", s.handler.PingHandler)
 
-		r.Get("/gauge/", s.handler.GetGaugeMetricHandler)
-		r.Get("/gauge/{metricName}", s.handler.GetGaugeMetricHandler)
+	router.POST("/value", s.handler.GetMetricsHandler)
 
-		r.Get("/counter/", s.handler.GetCounterMetricHandler)
-		r.Get("/counter/{metricName}", s.handler.GetCounterMetricHandler)
+	router.POST("/update/gauge/:metricName/:metricValue", s.handler.SetGaugeMetricHandler)
 
-		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "Invlid metric type", http.StatusBadRequest)
-		})
-	})
+	router.POST("/update/counter/:metricName/:metricValue", s.handler.SetCounterMetricHandler)
 
-	r.Post("/updates/", s.handler.SetMetricsHandler)
+	router.POST("/updates", s.handler.SetMetricsHandler)
 
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/", s.handler.SetMetricHandler)
-
-		r.Post("/gauge/", s.handler.SetGaugeMetricHandler)
-		r.Post("/gauge/{metricName}/", s.handler.SetGaugeMetricHandler)
-		r.Post("/gauge/{metricName}/{metricValue}", s.handler.SetGaugeMetricHandler)
-
-		r.Post("/counter/", s.handler.SetCounterMetricHandler)
-		r.Post("/counter/{metricName}/", s.handler.SetCounterMetricHandler)
-		r.Post("/counter/{metricName}/{metricValue}", s.handler.SetCounterMetricHandler)
-
-		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-			http.Error(w, "Invalid metric type", http.StatusBadRequest)
-		})
-	})
+	router.POST("/update", s.handler.SetMetricHandler)
 
 	server := &http.Server{
-		Addr:    s.addr,
-		Handler: r,
+		Addr:    s.config.Address,
+		Handler: router,
 	}
 
 	go func() {

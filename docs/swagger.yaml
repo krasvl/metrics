@@ -1,0 +1,233 @@
+basePath: /
+definitions:
+  handlers.Metric:
+    properties:
+      delta:
+        type: integer
+      id:
+        type: string
+      type:
+        type: string
+      value:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Starts the HTTP server with all routes and middleware.
+  title: Start Server
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: Returns an HTML report of all metrics.
+      produces:
+      - text/html
+      responses:
+        "200":
+          description: HTML report
+          schema:
+            type: string
+      summary: Get Metrics Report
+      tags:
+      - Metrics
+  /ping:
+    get:
+      description: Health check endpoint.
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      summary: Ping
+      tags:
+      - Health
+  /update:
+    post:
+      consumes:
+      - application/json
+      description: Sets a single metric.
+      parameters:
+      - description: Metric
+        in: body
+        name: metric
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.Metric'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.Metric'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Set Metric
+      tags:
+      - Metrics
+  /update/counter/{metricName}/{metricValue}:
+    post:
+      description: Sets a counter metric by name and value.
+      parameters:
+      - description: Metric Name
+        in: path
+        name: metricName
+        required: true
+        type: string
+      - description: Metric Value
+        in: path
+        name: metricValue
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Set Counter Metric
+      tags:
+      - Metrics
+  /update/gauge/{metricName}/{metricValue}:
+    post:
+      description: Sets a gauge metric by name and value.
+      parameters:
+      - description: Metric Name
+        in: path
+        name: metricName
+        required: true
+        type: string
+      - description: Metric Value
+        in: path
+        name: metricValue
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Set Gauge Metric
+      tags:
+      - Metrics
+  /updates:
+    post:
+      consumes:
+      - application/json
+      description: Sets multiple metrics in a batch.
+      parameters:
+      - description: Metrics Batch
+        in: body
+        name: metrics
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/handlers.Metric'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/handlers.Metric'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+      summary: Set Metrics Batch
+      tags:
+      - Metrics
+  /value:
+    post:
+      consumes:
+      - application/json
+      description: Retrieves a metric by its ID.
+      parameters:
+      - description: Metric
+        in: body
+        name: metric
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.Metric'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.Metric'
+        "400":
+          description: Bad Request
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Get Metric
+      tags:
+      - Metrics
+  /value/counter/{metricName}:
+    get:
+      description: Retrieves a counter metric by name.
+      parameters:
+      - description: Metric Name
+        in: path
+        name: metricName
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Metric Value
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Get Counter Metric
+      tags:
+      - Metrics
+  /value/gauge/{metricName}:
+    get:
+      description: Retrieves a gauge metric by name.
+      parameters:
+      - description: Metric Name
+        in: path
+        name: metricName
+        required: true
+        type: string
+      responses:
+        "200":
+          description: Metric Value
+          schema:
+            type: string
+        "404":
+          description: Not Found
+          schema:
+            type: string
+      summary: Get Gauge Metric
+      tags:
+      - Metrics
+swagger: "2.0"
