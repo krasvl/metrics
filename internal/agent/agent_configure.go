@@ -3,16 +3,19 @@ package agent
 import (
 	"flag"
 	"fmt"
+	"log"
+	"metrics/internal/pollers"
+	"metrics/internal/storage"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
-	"metrics/internal/storage"
-
 	"go.uber.org/zap"
 )
 
+// GetConfiguredAgent initializes and configures a new Agent instance.
+// It reads configuration from flags and environment variables, sets up pollers, and returns the configured agent.
 func GetConfiguredAgent(
 	addrDefault string,
 	pushDefault int,
@@ -20,13 +23,17 @@ func GetConfiguredAgent(
 	keyDefault string,
 	rateLimitDefault int,
 ) (*Agent, error) {
-	addr := flag.String("a", addrDefault, "address")
-	pushInterval := flag.Int("r", pushDefault, "push interval")
-	pollInterval := flag.Int("p", pollDefault, "poll interval")
-	key := flag.String("k", keyDefault, "key")
-	rateLimit := flag.Int("l", rateLimitDefault, "key")
+	fs := flag.NewFlagSet("agent", flag.ContinueOnError)
 
-	flag.Parse()
+	addr := fs.String("a", addrDefault, "address")
+	pushInterval := fs.Int("r", pushDefault, "push interval")
+	pollInterval := fs.Int("p", pollDefault, "poll interval")
+	key := fs.String("k", keyDefault, "key")
+	rateLimit := fs.Int("l", rateLimitDefault, "rate limit")
+
+	if err := fs.Parse([]string{}); err != nil {
+		log.Printf("Error parsing flags: %v", err)
+	}
 
 	if value, ok := os.LookupEnv("ADDRESS"); ok && value != "" {
 		addr = &value
@@ -53,7 +60,10 @@ func GetConfiguredAgent(
 	}
 
 	if value, ok := os.LookupEnv("RATE_LIMIT"); ok && value != "" {
-		key = &value
+		parsed, err := strconv.Atoi(value)
+		if err == nil && parsed > 0 {
+			rateLimit = &parsed
+		}
 	}
 
 	if !strings.HasPrefix(*addr, "http://") && !strings.HasPrefix(*addr, "https://") {
@@ -65,21 +75,28 @@ func GetConfiguredAgent(
 		return nil, fmt.Errorf("cant create logger: %w", err)
 	}
 
-	s := storage.NewMemStorage()
+	config := Config{
+		ServerURL:    *addr,
+		Key:          *key,
+		PollInterval: time.Duration(*pollInterval) * time.Millisecond,
+		PushInterval: time.Duration(*pushInterval) * time.Millisecond,
+		RateLimit:    *rateLimit,
+	}
+
 	agent := NewAgent(
-		*addr,
-		s,
-		time.Duration(*pollInterval)*time.Second,
-		time.Duration(*pushInterval)*time.Second,
-		*key,
-		*rateLimit,
+		config,
 		logger,
+		[]pollers.Poller{
+			pollers.NewDefaultPoller(storage.NewMemStorage()),
+			pollers.NewGopsutilPoller(storage.NewMemStorage()),
+		},
 	)
 
 	logger.Info("agent started:",
-		zap.String("addr", *addr),
-		zap.Int("pushInterval", *pushInterval),
-		zap.Int("pollInterval", *pollInterval),
+		zap.String("addr", config.ServerURL),
+		zap.Duration("pushInterval", config.PushInterval),
+		zap.Duration("pollInterval", config.PollInterval),
+		zap.Int("rateLimit", config.RateLimit),
 	)
 
 	return agent, nil

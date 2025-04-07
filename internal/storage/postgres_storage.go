@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,61 +16,17 @@ import (
 )
 
 type PostgresStorage struct {
-	logger           *zap.Logger
-	db               *sql.DB
-	connectionString string
+	logger *zap.Logger
+	db     *sql.DB
 }
 
-func NewPosgresStorage(connectionString string, logger *zap.Logger) (*PostgresStorage, error) {
+func NewPosgresStorage(db *sql.DB, logger *zap.Logger) (*PostgresStorage, error) {
 	storage := &PostgresStorage{
-		connectionString: connectionString,
-		logger:           logger,
+		db:     db,
+		logger: logger,
 	}
 
-	db, err := sql.Open("pgx", connectionString)
-	if err != nil {
-		return nil, fmt.Errorf("cant open db connection: %s, err: %w", connectionString, err)
-	}
-	storage.db = db
-
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	if err := storage.Ping(ctx); err != nil {
-		return nil, err
-	}
-
-	if err := storage.initTables(ctx); err != nil {
-		return nil, err
-	}
-
-	logger.Debug("db init success")
 	return storage, nil
-}
-
-func (s *PostgresStorage) initTables(ctx context.Context) error {
-	queries := []string{
-		`CREATE TABLE IF NOT EXISTS gauges (
-			id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-			name VARCHAR(50) NOT NULL UNIQUE,
-			value DOUBLE PRECISION NOT NULL
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_gauges_name ON gauges (name);`,
-		`CREATE TABLE IF NOT EXISTS counters (
-			id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-			name VARCHAR(50) NOT NULL UNIQUE,
-			value BIGINT NOT NULL
-		);`,
-		`CREATE INDEX IF NOT EXISTS idx_counters_name ON counters (name);`,
-	}
-
-	for _, query := range queries {
-		_, err := s.db.ExecContext(ctx, query)
-		if err != nil {
-			return fmt.Errorf("cant init tables: %w", err)
-		}
-	}
-
-	return nil
 }
 
 func (s *PostgresStorage) Ping(ctx context.Context) error {
@@ -82,27 +39,23 @@ func (s *PostgresStorage) Ping(ctx context.Context) error {
 	return nil
 }
 
-func (s *PostgresStorage) Close() error {
-	if err := s.db.Close(); err != nil {
-		return fmt.Errorf("cant close db connection: %w", err)
-	}
-	return nil
-}
-
 func (s *PostgresStorage) GetGauges(ctx context.Context) (map[string]Gauge, error) {
 	var rows *sql.Rows
 	var err error
 	err = s.withRetry(func() error {
 		rows, err = s.db.QueryContext(ctx, "SELECT name, value FROM gauges")
-		if err := rows.Err(); err != nil {
-			return fmt.Errorf("rows iteration error: %w", err)
+		if err != nil {
+			return fmt.Errorf("cant query gauges: %w", err)
+		}
+		if rows.Err() != nil {
+			return fmt.Errorf("rows error: %w", rows.Err())
 		}
 		defer func() {
-			if err := rows.Close(); err != nil {
-				s.logger.Error("cant close rows", zap.Error(err))
+			if closeErr := rows.Close(); closeErr != nil {
+				s.logger.Error("Error closing rows for counters", zap.Error(closeErr))
 			}
 		}()
-		return err
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cant query gauges: %w", err)
@@ -113,10 +66,14 @@ func (s *PostgresStorage) GetGauges(ctx context.Context) (map[string]Gauge, erro
 		var name string
 		var value Gauge
 		if err := rows.Scan(&name, &value); err != nil {
-			s.logger.Error("cant scan gauges", zap.Error(err))
+			s.logger.Error("Error scanning gauge row", zap.Error(err))
 			continue
 		}
 		result[name] = value
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
 	return result, nil
@@ -153,11 +110,18 @@ func (s *PostgresStorage) SetGauge(ctx context.Context, name string, value Gauge
 }
 
 func (s *PostgresStorage) SetGauges(ctx context.Context, values map[string]Gauge) error {
-	valueStrings := make([]string, 0, len(values))
-	valueArgs := make([]interface{}, 0, len(values)*2)
+	keys := make([]string, 0, len(values))
+	for name := range values {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+
+	valueStrings := make([]string, 0, len(keys))
+	valueArgs := make([]interface{}, 0, len(keys)*2)
 
 	i := 1
-	for name, value := range values {
+	for _, name := range keys {
+		value := values[name]
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i, i+1))
 		valueArgs = append(valueArgs, name, value)
 		i += 2
@@ -181,17 +145,6 @@ func (s *PostgresStorage) SetGauges(ctx context.Context, values map[string]Gauge
 	return nil
 }
 
-func (s *PostgresStorage) ClearGauge(ctx context.Context, name string) error {
-	err := s.withRetry(func() error {
-		_, err := s.db.ExecContext(ctx, "DELETE FROM gauges WHERE name = $1", name)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("cant clear gauge: %w", err)
-	}
-	return nil
-}
-
 func (s *PostgresStorage) ClearGauges(ctx context.Context) error {
 	err := s.withRetry(func() error {
 		_, err := s.db.ExecContext(ctx, "DELETE FROM gauges")
@@ -208,15 +161,18 @@ func (s *PostgresStorage) GetCounters(ctx context.Context) (map[string]Counter, 
 	var err error
 	err = s.withRetry(func() error {
 		rows, err = s.db.QueryContext(ctx, "SELECT name, value FROM counters")
-		if err := rows.Err(); err != nil {
-			return fmt.Errorf("rows iteration error: %w", err)
+		if err != nil {
+			return fmt.Errorf("cant query counters: %w", err)
 		}
 		defer func() {
-			if err := rows.Close(); err != nil {
-				s.logger.Error("cant close rows", zap.Error(err))
+			if closeErr := rows.Close(); closeErr != nil {
+				s.logger.Error("Error closing rows for counters", zap.Error(closeErr))
 			}
 		}()
-		return err
+		if rows.Err() != nil {
+			return fmt.Errorf("rows error: %w", rows.Err())
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cant query counters: %w", err)
@@ -227,10 +183,14 @@ func (s *PostgresStorage) GetCounters(ctx context.Context) (map[string]Counter, 
 		var name string
 		var value Counter
 		if err := rows.Scan(&name, &value); err != nil {
-			s.logger.Error("cant scan counter row", zap.Error(err))
+			s.logger.Error("Error scanning counter row", zap.Error(err))
 			continue
 		}
 		result[name] = value
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
 	}
 
 	return result, nil
@@ -267,11 +227,18 @@ func (s *PostgresStorage) SetCounter(ctx context.Context, name string, value Cou
 }
 
 func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Counter) error {
-	valueStrings := make([]string, 0, len(values))
-	valueArgs := make([]interface{}, 0, len(values)*2)
+	keys := make([]string, 0, len(values))
+	for name := range values {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+
+	valueStrings := make([]string, 0, len(keys))
+	valueArgs := make([]interface{}, 0, len(keys)*2)
 
 	i := 1
-	for name, value := range values {
+	for _, name := range keys {
+		value := values[name]
 		valueStrings = append(valueStrings, fmt.Sprintf("($%d, $%d)", i, i+1))
 		valueArgs = append(valueArgs, name, value)
 		i += 2
@@ -289,20 +256,9 @@ func (s *PostgresStorage) SetCounters(ctx context.Context, values map[string]Cou
 	})
 
 	if err != nil {
-		return fmt.Errorf("cant set gauges: %w", err)
+		return fmt.Errorf("cant set counters: %w", err)
 	}
 
-	return nil
-}
-
-func (s *PostgresStorage) ClearCounter(ctx context.Context, name string) error {
-	err := s.withRetry(func() error {
-		_, err := s.db.ExecContext(ctx, "DELETE FROM counters WHERE name = $1", name)
-		return err
-	})
-	if err != nil {
-		return fmt.Errorf("cant clear counter: %w", err)
-	}
 	return nil
 }
 
@@ -323,12 +279,18 @@ func (s *PostgresStorage) withRetry(exec func() error) error {
 		time.Sleep(time.Duration(delay) * time.Second)
 		err = exec()
 
-		if err != nil && (errors.Is(err, pgx.ErrConnBusy) || !errors.Is(err, pgx.ErrDeadConn)) {
-			s.logger.Warn("connection fail, retry", zap.Error(err))
-			continue
+		if err != nil {
+			if strings.Contains(err.Error(), "deadlock detected") {
+				s.logger.Warn("Deadlock detected, retrying", zap.Error(err))
+				continue
+			}
+			if errors.Is(err, pgx.ErrConnBusy) || !errors.Is(err, pgx.ErrDeadConn) {
+				s.logger.Warn("Connection fail, retry", zap.Error(err))
+				continue
+			}
 		}
 
 		return err
 	}
-	return nil
+	return err
 }

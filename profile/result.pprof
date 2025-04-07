@@ -1,0 +1,273 @@
+heap profile: 2: 1507328 [19: 7219408] @ heap/1048576
+1: 1048576 [1: 1048576] @ 0x610d8 0x7574c 0x733f0 0x2fbec0 0x2fd460 0x2a7dc8 0x2a99a4 0x301ec0 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c34d0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c 0x2a7dc8 0x300630 0x2ab1dc 0x2a6998 0x89b84
+#	0x2fbebf	runtime/trace.Start+0xcf						/usr/local/go/src/runtime/trace/trace.go:125
+#	0x2fd45f	net/http/pprof.Trace+0x29f						/usr/local/go/src/net/http/pprof/pprof.go:178
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x2a99a3	net/http.(*ServeMux).ServeHTTP+0x1a3					/usr/local/go/src/net/http/server.go:2688
+#	0x301ebf	github.com/go-chi/chi/v5.(*Mux).Mount.func1+0x1df			/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:327
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c34cf	metrics/internal/middleware.WithCompress.func1+0x2bf			/app/internal/middleware/middleware.go:78
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x30062f	github.com/go-chi/chi/v5.(*Mux).ServeHTTP+0x27f				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:90
+#	0x2ab1db	net/http.serverHandler.ServeHTTP+0xbb					/usr/local/go/src/net/http/server.go:3142
+#	0x2a6997	net/http.(*conn).serve+0x507						/usr/local/go/src/net/http/server.go:2044
+
+1: 458752 [1: 458752] @ 0x32dfa0 0x32dfc9 0x33c484 0x33c314 0x342688 0x34113c 0x340bc0 0x33b93c 0x340df8 0x5c611c 0x5c7554 0x5c75e4 0x50d0c 0x89b84
+#	0x32df9f	go.uber.org/zap/zapcore.newCounters+0x3f		/go/pkg/mod/go.uber.org/zap@v1.27.0/zapcore/sampler.go:41
+#	0x32dfc8	go.uber.org/zap/zapcore.NewSamplerWithOptions+0x68	/go/pkg/mod/go.uber.org/zap@v1.27.0/zapcore/sampler.go:156
+#	0x33c483	go.uber.org/zap.Config.buildOptions.func1+0x123		/go/pkg/mod/go.uber.org/zap@v1.27.0/config.go:289
+#	0x33c313	go.uber.org/zap.Config.buildOptions.WrapCore.func5+0x33	/go/pkg/mod/go.uber.org/zap@v1.27.0/options.go:44
+#	0x342687	go.uber.org/zap.optionFunc.apply+0x27			/go/pkg/mod/go.uber.org/zap@v1.27.0/options.go:38
+#	0x34113b	go.uber.org/zap.(*Logger).WithOptions+0xab		/go/pkg/mod/go.uber.org/zap@v1.27.0/logger.go:172
+#	0x340bbf	go.uber.org/zap.New+0x14f				/go/pkg/mod/go.uber.org/zap@v1.27.0/logger.go:79
+#	0x33b93b	go.uber.org/zap.Config.Build+0x19b			/go/pkg/mod/go.uber.org/zap@v1.27.0/config.go:254
+#	0x340df7	go.uber.org/zap.NewProduction+0x87			/go/pkg/mod/go.uber.org/zap@v1.27.0/logger.go:101
+#	0x5c611b	metrics/internal/server.GetConfiguredServer+0x4cb	/app/internal/server/server_configure.go:61
+#	0x5c7553	main.Run+0x53						/app/cmd/server/main.go:17
+#	0x5c75e3	main.main+0x43						/app/cmd/server/main.go:29
+#	0x50d0b		runtime.main+0x28b					/usr/local/go/src/runtime/proc.go:271
+
+0: 0 [0: 0] @ 0x610d8 0x75784 0x733f0 0x2fbec0 0x2fd460 0x2a7dc8 0x2a99a4 0x301ec0 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c34d0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c 0x2a7dc8 0x300630 0x2ab1dc 0x2a6998 0x89b84
+#	0x2fbebf	runtime/trace.Start+0xcf						/usr/local/go/src/runtime/trace/trace.go:125
+#	0x2fd45f	net/http/pprof.Trace+0x29f						/usr/local/go/src/net/http/pprof/pprof.go:178
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x2a99a3	net/http.(*ServeMux).ServeHTTP+0x1a3					/usr/local/go/src/net/http/server.go:2688
+#	0x301ebf	github.com/go-chi/chi/v5.(*Mux).Mount.func1+0x1df			/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:327
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c34cf	metrics/internal/middleware.WithCompress.func1+0x2bf			/app/internal/middleware/middleware.go:78
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x30062f	github.com/go-chi/chi/v5.(*Mux).ServeHTTP+0x27f				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:90
+#	0x2ab1db	net/http.serverHandler.ServeHTTP+0xbb					/usr/local/go/src/net/http/server.go:3142
+#	0x2a6997	net/http.(*conn).serve+0x507						/usr/local/go/src/net/http/server.go:2044
+
+0: 0 [1: 80] @ 0x25565c 0x25572d 0x2557b5 0x25f188 0x25f151 0x5c2c4c 0xecbd8 0x5c384c 0x31a014 0x5c20a0 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c35a0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c 0x2a7dc8 0x300630 0x2ab1dc 0x2a6998 0x89b84
+#	0x25565b	compress/flate.newHuffmanEncoder+0xdb					/usr/local/go/src/compress/flate/huffman_code.go:60
+#	0x25572c	compress/flate.newHuffmanBitWriter+0x1ac				/usr/local/go/src/compress/flate/huffman_bit_writer.go:101
+#	0x2557b4	compress/flate.(*compressor).init+0x234					/usr/local/go/src/compress/flate/deflate.go:569
+#	0x25f187	compress/flate.NewWriter+0x287						/usr/local/go/src/compress/flate/deflate.go:667
+#	0x25f150	compress/gzip.(*Writer).Write+0x250					/usr/local/go/src/compress/gzip/gzip.go:191
+#	0x5c2c4b	metrics/internal/middleware.(*gzipResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:23
+#	0xecbd7		io.(*multiWriter).Write+0x67						/usr/local/go/src/io/multi.go:85
+#	0x5c384b	metrics/internal/middleware.(*hashResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:125
+#	0x31a013	encoding/json.(*Encoder).Encode+0x1a3					/usr/local/go/src/encoding/json/stream.go:230
+#	0x5c209f	metrics/internal/handlers.(*MetricsHandler).SetMetricsHandler+0xa3f	/app/internal/handlers/handlers.go:288
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c359f	metrics/internal/middleware.WithCompress.func1+0x38f			/app/internal/middleware/middleware.go:76
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x30062f	github.com/go-chi/chi/v5.(*Mux).ServeHTTP+0x27f				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:90
+#	0x2ab1db	net/http.serverHandler.ServeHTTP+0xbb					/usr/local/go/src/net/http/server.go:3142
+#	0x2a6997	net/http.(*conn).serve+0x507						/usr/local/go/src/net/http/server.go:2044
+
+0: 0 [1: 2048] @ 0x2ed744 0x2ed6e5 0x1071b4 0x2f170c 0x2f1d04 0x2f18f0 0x2effb8 0x2fdf74 0x2fe8b4 0x2a7dc8 0x2a99a4 0x301ec0 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c34d0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c 0x2a7dc8 0x300630 0x2ab1dc 0x2a6998 0x89b84
+#	0x2ed743	text/tabwriter.(*Writer).append+0x123					/usr/local/go/src/text/tabwriter/tabwriter.go:410
+#	0x2ed6e4	text/tabwriter.(*Writer).Write+0xc4					/usr/local/go/src/text/tabwriter/tabwriter.go:533
+#	0x1071b3	fmt.Fprintf+0x83							/usr/local/go/src/fmt/print.go:225
+#	0x2f170b	runtime/pprof.printStackRecord+0x27b					/usr/local/go/src/runtime/pprof/pprof.go:541
+#	0x2f1d03	runtime/pprof.writeHeapInternal+0x3e3					/usr/local/go/src/runtime/pprof/pprof.go:661
+#	0x2f18ef	runtime/pprof.writeAlloc+0x2f						/usr/local/go/src/runtime/pprof/pprof.go:578
+#	0x2effb7	runtime/pprof.(*Profile).WriteTo+0x147					/usr/local/go/src/runtime/pprof/pprof.go:369
+#	0x2fdf73	net/http/pprof.handler.ServeHTTP+0x443					/usr/local/go/src/net/http/pprof/pprof.go:267
+#	0x2fe8b3	net/http/pprof.Index+0xc3						/usr/local/go/src/net/http/pprof/pprof.go:384
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x2a99a3	net/http.(*ServeMux).ServeHTTP+0x1a3					/usr/local/go/src/net/http/server.go:2688
+#	0x301ebf	github.com/go-chi/chi/v5.(*Mux).Mount.func1+0x1df			/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:327
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c34cf	metrics/internal/middleware.WithCompress.func1+0x2bf			/app/internal/middleware/middleware.go:78
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x30062f	github.com/go-chi/chi/v5.(*Mux).ServeHTTP+0x27f				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:90
+#	0x2ab1db	net/http.serverHandler.ServeHTTP+0xbb					/usr/local/go/src/net/http/server.go:3142
+#	0x2a6997	net/http.(*conn).serve+0x507						/usr/local/go/src/net/http/server.go:2044
+
+0: 0 [1: 73728] @ 0x255a4c 0x2559d5 0x25f188 0x25f151 0x5c2c4c 0xecbd8 0x5c384c 0x31a014 0x5c20a0 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c35a0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c 0x2a7dc8 0x300630 0x2ab1dc 0x2a6998 0x89b84
+#	0x255a4b	compress/flate.(*compressor).initDeflate+0x4cb				/usr/local/go/src/compress/flate/deflate.go:371
+#	0x2559d4	compress/flate.(*compressor).init+0x454					/usr/local/go/src/compress/flate/deflate.go:592
+#	0x25f187	compress/flate.NewWriter+0x287						/usr/local/go/src/compress/flate/deflate.go:667
+#	0x25f150	compress/gzip.(*Writer).Write+0x250					/usr/local/go/src/compress/gzip/gzip.go:191
+#	0x5c2c4b	metrics/internal/middleware.(*gzipResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:23
+#	0xecbd7		io.(*multiWriter).Write+0x67						/usr/local/go/src/io/multi.go:85
+#	0x5c384b	metrics/internal/middleware.(*hashResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:125
+#	0x31a013	encoding/json.(*Encoder).Encode+0x1a3					/usr/local/go/src/encoding/json/stream.go:230
+#	0x5c209f	metrics/internal/handlers.(*MetricsHandler).SetMetricsHandler+0xa3f	/app/internal/handlers/handlers.go:288
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c359f	metrics/internal/middleware.WithCompress.func1+0x38f			/app/internal/middleware/middleware.go:76
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x30062f	github.com/go-chi/chi/v5.(*Mux).ServeHTTP+0x27f				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:90
+#	0x2ab1db	net/http.serverHandler.ServeHTTP+0xbb					/usr/local/go/src/net/http/server.go:3142
+#	0x2a6997	net/http.(*conn).serve+0x507						/usr/local/go/src/net/http/server.go:2044
+
+0: 0 [4: 262144] @ 0x2559ec 0x2559d5 0x25f188 0x25f151 0x5c2c4c 0xecbd8 0x5c384c 0x31a014 0x5c20a0 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c35a0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c 0x2a7dc8 0x300630 0x2ab1dc 0x2a6998 0x89b84
+#	0x2559eb	compress/flate.(*compressor).initDeflate+0x46b				/usr/local/go/src/compress/flate/deflate.go:369
+#	0x2559d4	compress/flate.(*compressor).init+0x454					/usr/local/go/src/compress/flate/deflate.go:592
+#	0x25f187	compress/flate.NewWriter+0x287						/usr/local/go/src/compress/flate/deflate.go:667
+#	0x25f150	compress/gzip.(*Writer).Write+0x250					/usr/local/go/src/compress/gzip/gzip.go:191
+#	0x5c2c4b	metrics/internal/middleware.(*gzipResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:23
+#	0xecbd7		io.(*multiWriter).Write+0x67						/usr/local/go/src/io/multi.go:85
+#	0x5c384b	metrics/internal/middleware.(*hashResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:125
+#	0x31a013	encoding/json.(*Encoder).Encode+0x1a3					/usr/local/go/src/encoding/json/stream.go:230
+#	0x5c209f	metrics/internal/handlers.(*MetricsHandler).SetMetricsHandler+0xa3f	/app/internal/handlers/handlers.go:288
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c359f	metrics/internal/middleware.WithCompress.func1+0x38f			/app/internal/middleware/middleware.go:76
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x30062f	github.com/go-chi/chi/v5.(*Mux).ServeHTTP+0x27f				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:90
+#	0x2ab1db	net/http.serverHandler.ServeHTTP+0xbb					/usr/local/go/src/net/http/server.go:3142
+#	0x2a6997	net/http.(*conn).serve+0x507						/usr/local/go/src/net/http/server.go:2044
+
+0: 0 [8: 5308416] @ 0x25f174 0x25f151 0x5c2c4c 0xecbd8 0x5c384c 0x31a014 0x5c20a0 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c35a0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c 0x2a7dc8 0x300630 0x2ab1dc 0x2a6998 0x89b84
+#	0x25f173	compress/flate.NewWriter+0x273						/usr/local/go/src/compress/flate/deflate.go:666
+#	0x25f150	compress/gzip.(*Writer).Write+0x250					/usr/local/go/src/compress/gzip/gzip.go:191
+#	0x5c2c4b	metrics/internal/middleware.(*gzipResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:23
+#	0xecbd7		io.(*multiWriter).Write+0x67						/usr/local/go/src/io/multi.go:85
+#	0x5c384b	metrics/internal/middleware.(*hashResponseWriter).Write+0x2b		/app/internal/middleware/middleware.go:125
+#	0x31a013	encoding/json.(*Encoder).Encode+0x1a3					/usr/local/go/src/encoding/json/stream.go:230
+#	0x5c209f	metrics/internal/handlers.(*MetricsHandler).SetMetricsHandler+0xa3f	/app/internal/handlers/handlers.go:288
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c359f	metrics/internal/middleware.WithCompress.func1+0x38f			/app/internal/middleware/middleware.go:76
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x30062f	github.com/go-chi/chi/v5.(*Mux).ServeHTTP+0x27f				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:90
+#	0x2ab1db	net/http.serverHandler.ServeHTTP+0xbb					/usr/local/go/src/net/http/server.go:3142
+#	0x2a6997	net/http.(*conn).serve+0x507						/usr/local/go/src/net/http/server.go:2044
+
+0: 0 [1: 128] @ 0x18dcc4 0x1fd9d8 0x3a1a0c 0x3a1388 0x3a0d44 0x3a9950 0x3a8a34 0x3a40f0 0x3a3c40 0x3a25a4 0x3a255d 0x3987cc 0x38c974 0x38a450 0x38d8cc 0x38a38c 0x5bcf5c 0x5bef60 0x5bceb8 0x5c2944 0x2a7dc8 0x302868 0x2a7dc8 0x5c50d8 0x2a7dc8 0x5c34d0 0x2a7dc8 0x5c2eec 0x2a7dc8 0x5c5348 0x2a7dc8 0x5c587c
+#	0x18dcc3	crypto/sha256.New+0x23							/usr/local/go/src/crypto/sha256/sha256.go:154
+#	0x1fd9d7	crypto/hmac.New+0x77							/usr/local/go/src/crypto/hmac/hmac.go:139
+#	0x3a1a0b	github.com/lib/pq/scram.(*Client).saltPassword+0x6b			/go/pkg/mod/github.com/lib/pq@v1.10.9/scram/scram.go:217
+#	0x3a1387	github.com/lib/pq/scram.(*Client).step2+0x357				/go/pkg/mod/github.com/lib/pq@v1.10.9/scram/scram.go:186
+#	0x3a0d43	github.com/lib/pq/scram.(*Client).Step+0xa3				/go/pkg/mod/github.com/lib/pq@v1.10.9/scram/scram.go:124
+#	0x3a994f	github.com/lib/pq.(*conn).auth+0xdcf					/go/pkg/mod/github.com/lib/pq@v1.10.9/conn.go:1314
+#	0x3a8a33	github.com/lib/pq.(*conn).startup+0x6e3					/go/pkg/mod/github.com/lib/pq@v1.10.9/conn.go:1196
+#	0x3a40ef	github.com/lib/pq.(*Connector).open+0x43f				/go/pkg/mod/github.com/lib/pq@v1.10.9/conn.go:390
+#	0x3a3c3f	github.com/lib/pq.DialOpen+0x7f						/go/pkg/mod/github.com/lib/pq@v1.10.9/conn.go:340
+#	0x3a25a3	github.com/lib/pq.Open+0x63						/go/pkg/mod/github.com/lib/pq@v1.10.9/conn.go:330
+#	0x3a255c	github.com/lib/pq.Driver.Open+0x1c					/go/pkg/mod/github.com/lib/pq@v1.10.9/conn.go:57
+#	0x3987cb	database/sql.dsnConnector.Connect+0x3b					/usr/local/go/src/database/sql/sql.go:791
+#	0x38c973	database/sql.(*DB).conn+0x823						/usr/local/go/src/database/sql/sql.go:1415
+#	0x38a44f	database/sql.(*DB).PingContext.func1+0x3f				/usr/local/go/src/database/sql/sql.go:883
+#	0x38d8cb	database/sql.(*DB).retry+0x4b						/usr/local/go/src/database/sql/sql.go:1566
+#	0x38a38b	database/sql.(*DB).PingContext+0x6b					/usr/local/go/src/database/sql/sql.go:882
+#	0x5bcf5b	metrics/internal/storage.(*PostgresStorage).Ping.func1+0x2b		/app/internal/storage/postgres_storage.go:33
+#	0x5bef5f	metrics/internal/storage.(*PostgresStorage).withRetry+0xdf		/app/internal/storage/postgres_storage.go:258
+#	0x5bceb7	metrics/internal/storage.(*PostgresStorage).Ping+0x47			/app/internal/storage/postgres_storage.go:32
+#	0x5c2943	metrics/internal/handlers.(*MetricsHandler).PingHandler+0x93		/app/internal/handlers/handlers.go:351
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x302867	github.com/go-chi/chi/v5.(*Mux).routeHTTP+0x287				/go/pkg/mod/github.com/go-chi/chi/v5@v5.1.0/mux.go:459
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c50d7	metrics/internal/server.(*Server).Start.WithHashHeader.func6.1+0x127	/app/internal/middleware/middleware.go:168
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c34cf	metrics/internal/middleware.WithCompress.func1+0x2bf			/app/internal/middleware/middleware.go:78
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c2eeb	metrics/internal/middleware.WithDecompress.func1+0xcb			/app/internal/middleware/middleware.go:53
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c5347	metrics/internal/server.(*Server).Start.WithHashValidation.func5.1+0xc7	/app/internal/middleware/middleware.go:132
+#	0x2a7dc7	net/http.HandlerFunc.ServeHTTP+0x37					/usr/local/go/src/net/http/server.go:2171
+#	0x5c587b	metrics/internal/server.(*Server).Start.WithLogging.func4.1+0xbb	/app/internal/middleware/middleware.go:105
+
+0: 0 [1: 65536] @ 0x1cc2e8 0x1bbb84 0x1bc41c 0x1b6418 0x1b6708 0x1c87f0 0x1a8a24 0x1c5bf4 0x1a77a4 0x89b84
+#	0x1cc2e7	net.open+0x47					/usr/local/go/src/net/parse.go:80
+#	0x1bbb83	net.readHosts+0x233				/usr/local/go/src/net/hosts.go:68
+#	0x1bc41b	net.lookupStaticHost+0xdb			/usr/local/go/src/net/hosts.go:132
+#	0x1b6417	net.goLookupIPFiles+0x27			/usr/local/go/src/net/dnsclient_unix.go:603
+#	0x1b6707	net.(*Resolver).goLookupIPCNAMEOrder+0x87	/usr/local/go/src/net/dnsclient_unix.go:625
+#	0x1c87ef	net.(*Resolver).lookupIP+0xdf			/usr/local/go/src/net/lookup_unix.go:68
+#	0x1a8a23	net.init.func1+0x43				/usr/local/go/src/net/hook.go:22
+#	0x1c5bf3	net.(*Resolver).lookupIPAddr.func1+0x43		/usr/local/go/src/net/lookup.go:334
+#	0x1a77a3	internal/singleflight.(*Group).doCall+0x33	/usr/local/go/src/internal/singleflight/singleflight.go:93
+
+
+# runtime.MemStats
+# Alloc = 1906512
+# TotalAlloc = 15372104
+# Sys = 13718792
+# Lookups = 0
+# Mallocs = 12862
+# Frees = 11104
+# HeapAlloc = 1906512
+# HeapSys = 7782400
+# HeapIdle = 4710400
+# HeapInuse = 3072000
+# HeapReleased = 2375680
+# HeapObjects = 1758
+# Stack = 589824 / 589824
+# MSpan = 84640 / 97920
+# MCache = 16800 / 31200
+# BuckHashSys = 1452161
+# GCSys = 2660016
+# OtherSys = 1105271
+# NextGC = 4194304
+# LastGC = 1743548977966894834
+# PauseNs = [32750 556541 1029875 861375 899750 165375 635249 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+# PauseEnd = [1743548877972829968 1743548897960177547 1743548917970901001 1743548937966701677 1743548957965960005 1743548975052797347 1743548977966894834 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
+# NumGC = 7
+# NumForcedGC = 0
+# GCCPUFraction = 3.872496566142251e-05
+# DebugGC = false
+# MaxRSS = 20361216

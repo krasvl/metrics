@@ -17,22 +17,9 @@ up:
 down:
 	docker-compose -f $(COMPOSE_FILE) down
 
-.PHONY: test
-test:
-	go build -o $(SERVER_BIN) ./cmd/server
-	go build -o $(AGENT_BIN) ./cmd/agent
-
-	chmod 644 ./store
-
-	for i in $(shell seq 1 $(ITERATION)); do \
-		$(METRICSTEST_BIN) -test.v -test.run=^TestIteration$$i$$ \
-			-binary-path=$(SERVER_BIN) \
-			-agent-binary-path=$(AGENT_BIN) \
-			-source-path=. \
-			-server-port=8080 \
-			-file-storage-path=./store \
-			-database-dsn=postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable; \
-	done
+.PHONY: swag
+swag:
+	swag init -g /internal/server/server.go
 
 .PHONY: lint
 lint: _golangci-lint-rm-unformatted-report

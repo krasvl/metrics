@@ -3,6 +3,6 @@ WORKDIR /app
 COPY . .
 RUN cd cmd/agent && go build -o /agent
 
-FROM debian:bookworm
+FROM ubuntu:latest
 COPY --from=builder /agent /agent
 CMD ["/agent"]
